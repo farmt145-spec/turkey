@@ -17,6 +17,7 @@ export default function Login() {
   const [name, setName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [countryCode, setCountryCode] = useState("PL");
+  const [seedStarterData, setSeedStarterData] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -30,7 +31,7 @@ export default function Login() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(mode === "register"
-          ? { email, password, name, companyName, countryCode }
+          ? { email, password, name, companyName, countryCode, seedStarterData }
           : { email, password }),
       });
       const result = await response.json() as { message?: string };
@@ -89,6 +90,15 @@ export default function Login() {
                   <label className="block text-sm font-medium text-zinc-200">
                     Country code
                     <input className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2.5 text-zinc-50 uppercase outline-none transition focus:border-red-500" value={countryCode} onChange={(event) => setCountryCode(event.target.value.toUpperCase())} required minLength={2} maxLength={2} />
+                  </label>
+                  <label className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-3 text-sm text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={seedStarterData}
+                      onChange={(event) => setSeedStarterData(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>Dodaj starter dla nowej firmy: receptury, normy żywieniowe, surowce oraz przykładową fermę, kurnik i rzut.</span>
                   </label>
                 </>
               )}

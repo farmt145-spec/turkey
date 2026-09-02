@@ -14,14 +14,15 @@ Then push:
 git push origin HEAD:main
 ```
 
-## 2. Frontend deploy on Netlify
+## 2. New Netlify site
 
-In Netlify, set **Base directory** to `app`.
+Create a **new Netlify project** from this repository. The root `netlify.toml`
+already points Netlify to `app` and routes `/api/*` to Netlify Functions.
 
 Build command:
 
 ```bash
-npm install --legacy-peer-deps && npx vite build
+npm install --legacy-peer-deps && npm run build
 ```
 
 Publish directory:
@@ -30,70 +31,37 @@ Publish directory:
 dist/public
 ```
 
-In Netlify: **Site configuration → Environment variables → Add a variable**:
+In Netlify: **Site configuration → Environment variables → Add variables**:
 
 ```bash
-VITE_API_URL=https://twoj-backend.example.com/api/trpc
-```
-
-Wartość musi wskazywać dokładnie endpoint tRPC:
-
-```text
-https://twoj-backend.example.com/api/trpc
-```
-
-The value is embedded during the frontend build, so trigger **Deploy site** again
-after changing it. Do not add `DATABASE_URL`, `JWT_SECRET`, or MySQL credentials
-to Netlify.
-
-## 3. Backend deploy
-
-Deploy API separately from frontend. Keep backend on a private service and do not expose MySQL publicly.
-
-Recommended providers:
-- Railway
-- Render
-- Azure App Service
-- custom private VPS
-
-Required backend variables:
-
-```text
-DATABASE_URL=mysql://...
-JWT_SECRET=<długi losowy sekret>
+TURSO_DB_URL=libsql://twoja-baza.turso.io
+TURSO_AUTH_TOKEN=<token-turso>
+SESSION_SECRET=<długi losowy sekret>
 API_KEY_PEPPER=<drugi długi losowy sekret do haszowania kluczy API>
-NODE_ENV=production
-FRONTEND_URL=https://twoj-site.netlify.app
-CORS_ORIGIN=https://twoj-site.netlify.app
-SEED_DEMO=true   # tylko przy pierwszym uruchomieniu
 ```
 
-After the first successful deployment, set `SEED_DEMO=false` and redeploy.
+Optional demo mode:
 
-## 4. Database
-
-Keep the database private. Only backend should connect to it.
-
-Do not expose:
-- MySQL public port
-- database host publicly
-- admin credentials in frontend
-
-The tables are created by the backend from:
-
-```text
-app/db/migrations/0000_full_schema_sync.sql
+```bash
+DEMO_MODE=true
+DEMO_COMPANY_ID=1
+VITE_DEMO_MODE=true
 ```
 
-Set these variables on Railway/Render, not on Netlify:
+Optional:
 
-```env
-DATABASE_URL=mysql://user:password@private-host:3306/database
-SEED_DEMO=true
+```bash
+VITE_API_URL=
 ```
 
-On the first backend start, migrations create the schema. When the service is
-healthy and the demo data is visible, change `SEED_DEMO` to `false` and redeploy.
+Leave `VITE_API_URL` empty when the frontend and API run on the same Netlify
+domain. Trigger **Deploy site** again after changing environment variables.
+
+## 3. Database
+
+Keep the Turso credentials only in Netlify server-side environment variables.
+Do not expose database tokens or connection data in frontend code.
+
 For a local database, run from `app`:
 
 ```bash
@@ -102,15 +70,15 @@ npx tsx db/seed.ts
 npx tsx db/seed-ingredients.ts
 ```
 
-## 5. Production topology
+## 4. Production topology
 
 ```text
-Browser (Netlify frontend)
-      --> API backend (private host)
-      --> MySQL database (private)
+Browser
+      --> Netlify frontend + Netlify Functions
+      --> Turso / LibSQL database
 ```
 
-## 6. Local run
+## 5. Local run
 
 ```bash
 cd app
@@ -124,10 +92,10 @@ Open:
 http://127.0.0.1:4173
 ```
 
-## 7. Important notes
+## 6. Important notes
 
-- App is a single repo but split into frontend/backend deploy units.
-- Frontend site is static only.
-- API and DB must be hosted separately.
-- Do not expose the database to the public internet.
+- App is a single repo deployed on Netlify with server-side functions under `/api/*`.
+- Demo mode can auto-log into the seeded public company.
+- New companies can start with copied recipes, nutritional norms, ingredients, and starter structure data.
+- Do not expose database credentials to the browser.
 - Po zalogowaniu możesz utworzyć własną firmę w widoku `Struktura`; opcja seed doda dane startowe (ferma/kurnik/rzut).

@@ -7,16 +7,21 @@ import { seedProductionData } from "./production-data";
 
 let seededPromise: Promise<void> | null = null;
 
-export async function seedDemoData() {
+export async function ensureSharedTemplates() {
   const db = getDb();
-  const [firstCompany] = await db.select().from(s.companies).limit(1);
-  if (firstCompany) return;
-
   await seedNutritionalStandards(db);
   await seedFeedIngredients(db);
   await seedRecipeTemplates(db);
   await seedVaccinationTemplates(db);
-  await seedProductionData(db);
+}
+
+export async function seedDemoData() {
+  const db = getDb();
+  await ensureSharedTemplates();
+  const [firstCompany] = await db.select().from(s.companies).limit(1);
+  if (!firstCompany) {
+    await seedProductionData(db);
+  }
 }
 
 export async function ensureSeeded() {

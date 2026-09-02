@@ -2,133 +2,12 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createRouter, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { copyCompanyTemplates } from "./queries/companies";
+import { bootstrapCompanyData } from "./queries/companies";
+import { ensureSharedTemplates } from "./seed";
 import * as s from "@db/schema";
 import { eq, and, ne, desc } from "drizzle-orm";
 import { audit } from "./audit";
 import { requireBatchTenant, requireFarmTenant, requireHouseTenant, requireRequestedCompany, requireTenantCompany } from "./tenant";
-
-/* Harmonogram domyślny — Workflow Engine */
-export async function generateSchedule(batchId: number, startDate: string, sex: "toms" | "hens" | "mixed") {
-  const db = getDb();
-  const start = new Date(startDate);
-  const growDays = sex === "toms" ? 140 : sex === "hens" ? 112 : 126;
-  const add = (d: Date) => d.toISOString().slice(0, 10);
-  const plan: Array<{ offset: number; type: s.ScheduleEvent["eventType"]; title: string }> = [
-    { offset: -2, type: "washing", title: "Mycie kurnika" },
-    { offset: -1, type: "disinfection", title: "Dezynfekcja kurnika" },
-    { offset: -1, type: "housePrep", title: "Przygotowanie kurnika: nagrzanie, ściółka, sprawdzenie pojen" },
-    { offset: 0, type: "placement", title: "Przyjęcie piskląt" },
-    { offset: 7, type: "weighing", title: "Ważenie kontrolne (7. dzień)" },
-    { offset: 14, type: "vaccination", title: "Szczepienie ND (Newcastle) — La Sota" },
-    { offset: 14, type: "weighing", title: "Ważenie kontrolne (14. dzień)" },
-    { offset: 21, type: "vaccination", title: "Szczepienie TRT / aMPV" },
-    { offset: 21, type: "weighing", title: "Ważenie kontrolne (21. dzień)" },
-    { offset: 28, type: "feedChange", title: "Zmiana paszy: Starter → Grower I" },
-    { offset: 35, type: "vaccination", title: "Szczepienie HE (choroba krwotoczna)" },
-    { offset: 42, type: "weighing", title: "Ważenie kontrolne (42. dzień)" },
-    { offset: 49, type: "sampling", title: "Pobieranie prób (laboratorium)" },
-    { offset: 56, type: "feedChange", title: "Zmiana paszy: Grower I → Grower II" },
-    { offset: 56, type: "weighing", title: "Ważenie kontrolne (56. dzień)" },
-    { offset: 63, type: "litter", title: "Ścielenie — dosypanie ściółki" },
-    { offset: 70, type: "weighing", title: "Ważenie kontrolne (70. dzień)" },
-    { offset: 77, type: "feedChange", title: "Zmiana paszy: Grower II → Finisher I" },
-    { offset: 84, type: "weighing", title: "Ważenie kontrolne (84. dzień)" },
-    { offset: 98, type: "weighing", title: "Ważenie kontrolne (98. dzień)" },
-    { offset: Math.min(105, growDays - 14), type: "feedChange", title: "Zmiana paszy: Finisher I → Finisher II" },
-    { offset: growDays - 7, type: "weighing", title: "Ważenie przed ubojem" },
-    { offset: growDays, type: "sale", title: "Sprzedaż / ubój — raport końcowy" },
-  ];
-  for (const p of plan) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + p.offset);
-    await db.insert(s.scheduleEvents).values({ batchId, day: add(d), eventType: p.type, title: p.title });
-  }
-}
-
-async function seedStarterCompanyData(companyId: number) {
-  const db = getDb();
-  const start = new Date();
-  start.setDate(start.getDate() - 21);
-  const startDate = start.toISOString().slice(0, 10);
-  const endDate = new Date(start);
-  endDate.setDate(endDate.getDate() + 126);
-
-  const [{ id: lineId }] = await db.insert(s.geneticLines).values({
-    companyId,
-    name: "Starter Line",
-    supplier: "Starter Hatchery",
-  }).returning({ id: s.scheduleEvents.id });
-
-  const [{ id: farmId }] = await db.insert(s.farms).values({
-    companyId,
-    name: "Moja Ferma 1",
-    countryCode: "PL",
-    city: "Start",
-    lat: "52.00000",
-    lng: "19.00000",
-    capacity: 25000,
-  }).returning({ id: s.farms.id });
-
-  const [{ id: houseId }] = await db.insert(s.houses).values({
-    farmId,
-    name: "Kurnik A",
-    houseType: "finisher",
-    areaM2: "1600.0",
-    maxDensityKgM2: "42.0",
-    lengthM: "80.0",
-    widthM: "20.0",
-    heightM: "4.0",
-    feederCount: 120,
-    drinkerCount: 120,
-    lightingLux: 25,
-    lightingHours: "16.0",
-    ventilationM3h: 80000,
-  }).returning({ id: s.houses.id });
-
-  const [{ id: batchId }] = await db.insert(s.batches).values({
-    houseId,
-    geneticLineId: lineId,
-    code: `START-${companyId}-${Date.now()}`,
-    geneticLine: "Starter Line",
-    sex: "mixed",
-    startDate,
-    plannedEndDate: endDate.toISOString().slice(0, 10),
-    initialCount: 12000,
-    currentCount: 11880,
-    chickSupplier: "Starter Hatchery",
-    chickPrice: "1.650",
-  }).returning({ id: s.batches.id });
-
-  await db.insert(s.weighings).values({
-    batchId,
-    weighedAt: new Date(),
-    dayAge: 21,
-    sampleSize: 80,
-    avgWeightG: 930,
-    medianG: 920,
-    stdDevG: 110,
-    minG: 650,
-    maxG: 1190,
-    cv: "11.83",
-    operator: "system",
-  });
-
-  await db.insert(s.feedUsages).values({
-    batchId,
-    day: new Date().toISOString().slice(0, 10),
-    kg: "8420.0",
-  });
-
-  await db.insert(s.mortalities).values({
-    batchId,
-    day: new Date().toISOString().slice(0, 10),
-    count: 8,
-    cause: "start baseline",
-  });
-
-  await generateSchedule(batchId, startDate, "mixed");
-}
 
 export const orgRouter = createRouter({
   /* ------- firmy / tryb ------- */
@@ -146,19 +25,16 @@ export const orgRouter = createRouter({
     }))
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
+      await ensureSharedTemplates();
       const [{ id: companyId }] = await db.insert(s.companies).values({
         name: input.name.trim(),
         countryCode: input.countryCode.trim().toUpperCase(),
         baseCurrency: input.baseCurrency.trim().toUpperCase(),
-      }).returning({ id: s.weighings.id });
+      }).returning({ id: s.companies.id });
 
       await db.update(s.users).set({ companyId, role: "admin" }).where(eq(s.users.id, ctx.user!.id));
       await audit("companies", companyId, "create", { newValues: input });
-      await copyCompanyTemplates({ db, companyId });
-
-      if (input.seedStarterData) {
-        await seedStarterCompanyData(companyId);
-      }
+      await bootstrapCompanyData({ db, companyId, seedStarterData: input.seedStarterData });
 
       return { id: companyId };
     }),

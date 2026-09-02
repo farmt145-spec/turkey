@@ -64,6 +64,14 @@ SESSION_SECRET=<long-random-secret>
 API_KEY_PEPPER=<second-long-random-secret>
 ```
 
+Optional demo mode:
+
+```bash
+DEMO_MODE=true
+DEMO_COMPANY_ID=1
+VITE_DEMO_MODE=true
+```
+
 Important:
 - Netlify serves the frontend and the `/api/*` endpoints through Netlify Functions.
 - `VITE_API_URL` is optional; leave it empty to use the same Netlify site for API calls.
@@ -74,7 +82,7 @@ Important:
 - the app is designed for a single project architecture and does not create a separate parallel system
 - demo/full mode is available in the UI
 - ERP create flows include a default company fallback to avoid broken inserts
-- in `Struktura` you can create your own company and auto-generate starter data (farm + house + first batch)
+- in `Struktura` and during first registration you can create your own company with copied recipes, norms, ingredients, and starter farm data
 
 ## License
 

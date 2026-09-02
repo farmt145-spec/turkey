@@ -108,7 +108,7 @@ export default function Structure() {
             </Field>
             <label className="col-span-2 flex items-center gap-2 self-end text-xs text-zinc-400 lg:col-span-3">
               <input type="checkbox" checked={companyForm.seedStarterData} onChange={(e) => setCompanyForm({ ...companyForm, seedStarterData: e.target.checked })} />
-              Utwórz dane startowe (ferma, kurnik, rzut)
+              Utwórz dane startowe i skopiuj szablony (ferma, kurnik, rzut, receptury, normy, surowce)
             </label>
           </div>
           <div className="mt-4 flex gap-2">

@@ -7,6 +7,8 @@ import * as schema from "@db/schema";
 import type { User } from "@db/schema";
 import { getSessionCookieOptions } from "../lib/cookies";
 import { getDb } from "../queries/connection";
+import { bootstrapCompanyData } from "../queries/companies";
+import { ensureSharedTemplates } from "../seed";
 import { hashPassword, verifyPassword } from "./passwords";
 import { signSessionToken, verifySessionToken } from "./session";
 
@@ -43,6 +45,7 @@ export async function registerLocalUser(input: {
   name: string;
   companyName: string;
   countryCode: string;
+  seedStarterData?: boolean;
 }): Promise<User> {
   const email = normalizeEmail(input.email);
   if (!email || input.password.length < 12 || !input.name.trim() || !input.companyName.trim()) {
@@ -53,6 +56,7 @@ export async function registerLocalUser(input: {
   }
 
   const db = getDb();
+  await ensureSharedTemplates();
   return db.transaction(async (tx) => {
     const companyId = (await tx.insert(schema.companies).values({
       name: input.companyName.trim(),
@@ -68,6 +72,7 @@ export async function registerLocalUser(input: {
     }).returning({ id: schema.users.id });
     const [user] = await tx.select().from(schema.users).where(eq(schema.users.id, userId));
     if (!user) throw new Error("Created user could not be loaded.");
+    await bootstrapCompanyData({ db: tx as ReturnType<typeof getDb>, companyId, seedStarterData: input.seedStarterData ?? true });
     return user;
   });
 }

@@ -21,6 +21,7 @@ const registerSchema = z.object({
   name: z.string().trim().min(2).max(255),
   companyName: z.string().trim().min(2).max(255),
   countryCode: z.string().trim().length(2),
+  seedStarterData: z.boolean().default(true),
 });
 
 function errorResponse(error: unknown) {
