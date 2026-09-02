@@ -1,0 +1,385 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== CORE PRODUCTION ====================
+model House {
+  id          String   @id @default(uuid())
+  farmId      String
+  name        String
+  capacity    Int
+  areaM2      Float
+  createdAt   DateTime @default(now())
+
+  farm        Farm     @relation(fields: [farmId], references: [id])
+  batches     Batch[]
+  environment EnvironmentLog[]
+
+  @@map("houses")
+}
+
+model Batch {
+  id              String   @id @default(uuid())
+  farmId          String
+  houseId         String
+  batchNumber     String   @unique
+  breed           String
+  chicksReceived  Int
+  chicksCost      Decimal  @db.Decimal(12, 2)
+  startDate       DateTime
+  plannedEndDate  DateTime
+  actualEndDate   DateTime?
+  status          BatchStatus @default(ACTIVE)
+
+  // Live metrics
+  currentCount    Int      @default(0)
+  mortalityTotal  Int      @default(0)
+  avgWeight       Float    @default(0)
+  fcr             Float    @default(0)
+  adg             Float    @default(0)
+  epef            Float    @default(0)
+
+  // Financial summary (real-time)
+  totalCost       Decimal  @db.Decimal(14, 2) @default(0)
+  costPerKg       Decimal  @db.Decimal(10, 4) @default(0)
+  costPerBird     Decimal  @db.Decimal(10, 4) @default(0)
+  predictedMargin Decimal  @db.Decimal(14, 2) @default(0)
+  predictedProfit Decimal  @db.Decimal(14, 2) @default(0)
+  breakEvenPrice  Decimal  @db.Decimal(10, 4) @default(0)
+
+  farm            Farm     @relation(fields: [farmId], references: [id])
+  house           House    @relation(fields: [houseId], references: [id])
+
+  dailyCosts      DailyCost[]
+  feedRecords     FeedRecord[]
+  healthRecords   HealthRecord[]
+  environmentLogs EnvironmentLog[]
+  transfers       TransferRecord[]
+  saleRecords     SaleRecord[]
+  scenarioResults ScenarioResult[]
+  aiAdvisors      AIAdvisor[]
+  executiveSummaries ExecutiveSummary[]
+  benchmarkEntries BenchmarkEntry[]
+
+  @@map("batches")
+}
+
+enum BatchStatus {
+  ACTIVE
+  PENDING_SALE
+  SOLD
+  CLOSED
+  CANCELLED
+}
+
+// ==================== COSTS ====================
+model DailyCost {
+  id              String   @id @default(uuid())
+  batchId         String
+  date            DateTime
+
+  // Cost categories
+  chicksCost      Decimal  @db.Decimal(12, 2) @default(0)
+  feedCost        Decimal  @db.Decimal(12, 2) @default(0)
+  energyCost      Decimal  @db.Decimal(12, 2) @default(0)
+  gasCost         Decimal  @db.Decimal(12, 2) @default(0)
+  heatingCost     Decimal  @db.Decimal(12, 2) @default(0)
+  beddingCost     Decimal  @db.Decimal(12, 2) @default(0)
+  laborCost       Decimal  @db.Decimal(12, 2) @default(0)
+  medicationCost  Decimal  @db.Decimal(12, 2) @default(0)
+  vaccinationCost Decimal  @db.Decimal(12, 2) @default(0)
+  vitaminCost     Decimal  @db.Decimal(12, 2) @default(0)
+  transportCost   Decimal  @db.Decimal(12, 2) @default(0)
+  depreciationCost Decimal @db.Decimal(12, 2) @default(0)
+  otherCost       Decimal  @db.Decimal(12, 2) @default(0)
+
+  totalCost       Decimal  @db.Decimal(12, 2)
+  costPerBird     Decimal  @db.Decimal(10, 4)
+  costPerKg       Decimal  @db.Decimal(10, 4)
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@unique([batchId, date])
+  @@map("daily_costs")
+}
+
+model FeedRecord {
+  id              String   @id @default(uuid())
+  batchId         String
+  date            DateTime
+  recipeId        String?
+  recipeName      String
+  quantityKg      Float
+  costPerKg       Decimal  @db.Decimal(10, 4)
+  totalCost       Decimal  @db.Decimal(12, 2)
+  fcrAtDate       Float?
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+  recipe          FeedRecipe? @relation(fields: [recipeId], references: [id])
+
+  @@map("feed_records")
+}
+
+// ==================== HEALTH ====================
+model HealthRecord {
+  id              String   @id @default(uuid())
+  batchId         String
+  date            DateTime
+  type            HealthType
+  description     String
+  mortality       Int      @default(0)
+  culled          Int      @default(0)
+  medicationCost  Decimal  @db.Decimal(12, 2) @default(0)
+  vaccinationCost Decimal  @db.Decimal(12, 2) @default(0)
+  vitaminCost     Decimal  @db.Decimal(12, 2) @default(0)
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("health_records")
+}
+
+enum HealthType {
+  MORTALITY
+  DISEASE
+  VACCINATION
+  TREATMENT
+  CULLING
+  INSPECTION
+}
+
+// ==================== ENVIRONMENT ====================
+// ==================== TRANSFERS ====================
+model TransferRecord {
+  id              String   @id @default(uuid())
+  batchId         String
+  fromHouseId     String?
+  toHouseId       String?
+  date            DateTime
+  birdsCount      Int
+  avgWeight       Float
+  reason          String
+  transportCost   Decimal  @db.Decimal(12, 2) @default(0)
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("transfer_records")
+}
+
+// ==================== SALES ====================
+model SaleRecord {
+  id              String   @id @default(uuid())
+  batchId         String
+  date            DateTime
+  contractorId    String
+  contractorName  String
+  birdsCount      Int
+  totalWeightKg   Float
+  avgWeightKg     Float
+  pricePerKg      Decimal  @db.Decimal(10, 4)
+  totalRevenue    Decimal  @db.Decimal(14, 2)
+  qualityGrade    String?
+  documentNumber  String?
+
+  // Costs at sale
+  transportCost   Decimal  @db.Decimal(12, 2) @default(0)
+  slaughterCost   Decimal  @db.Decimal(12, 2) @default(0)
+
+  // Financial result
+  margin          Decimal  @db.Decimal(14, 2)
+  profit          Decimal  @db.Decimal(14, 2)
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("sale_records")
+}
+
+model Contractor {
+  id              String   @id @default(uuid())
+  name            String
+  contact         String?
+  address         String?
+  paymentTerms    String?
+  rating          Float    @default(5)
+  isActive        Boolean  @default(true)
+
+  @@map("contractors")
+}
+
+// ==================== SCENARIO ANALYSIS ====================
+model ScenarioResult {
+  id              String   @id @default(uuid())
+  batchId         String
+  name            String
+  description     String
+
+  // Parameters changed
+  paramFeedPriceChange  Float?   // percent
+  paramSoyPriceChange   Float?
+  paramFcrChange        Float?
+  paramMortalityChange  Float?
+  paramSaleDelayDays    Int?
+  paramGasPriceChange   Float?
+  paramRecipeId         String?
+
+  // Results
+  predictedCost       Decimal  @db.Decimal(14, 2)
+  predictedMargin     Decimal  @db.Decimal(14, 2)
+  predictedProfit     Decimal  @db.Decimal(14, 2)
+  predictedCostPerKg  Decimal  @db.Decimal(10, 4)
+  impactOnProfit      Decimal  @db.Decimal(14, 2)
+
+  createdAt           DateTime @default(now())
+  createdBy           String
+
+  batch               Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("scenario_results")
+}
+
+// ==================== AI ADVISOR ====================
+model AIAdvisor {
+  id              String   @id @default(uuid())
+  batchId         String
+  date            DateTime
+  category        AdvisorCategory
+  priority        Priority
+  title           String
+  description     String
+  justification   String
+  estimatedSavings Decimal? @db.Decimal(12, 2)
+  estimatedGain   Decimal? @db.Decimal(12, 2)
+  actionTaken     Boolean  @default(false)
+  actionResult    String?
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("ai_advisors")
+}
+
+enum AdvisorCategory {
+  FEED
+  ENERGY
+  HEALTH
+  LABOR
+  TRANSPORT
+  TIMING
+  RECIPE
+  GENERAL
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// ==================== EXECUTIVE SUMMARY ====================
+model ExecutiveSummary {
+  id              String   @id @default(uuid())
+  batchId         String
+  generatedAt     DateTime @default(now())
+  period          SummaryPeriod
+
+  // Content
+  strengths       Json     // array of strings
+  threats         Json     // array of strings
+  topCosts        Json     // array of {category, amount, percent}
+  profitOpportunities Json // array of strings
+  endForecast     Json     // {predictedDate, predictedWeight, predictedMargin}
+  recommendations Json     // array of {action, impact, priority}
+
+  // Raw metrics for charting
+  metricsSnapshot Json
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("executive_summaries")
+}
+
+enum SummaryPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  BATCH
+}
+
+// ==================== BENCHMARKS ====================
+model BenchmarkEntry {
+  id              String   @id @default(uuid())
+  farmId          String
+  batchId         String
+  houseId         String?
+
+  // Dimensions
+  period          String   // e.g., "2024-W01"
+
+  // KPIs
+  fcr             Float
+  adg             Float
+  epef            Float
+  costPerKg       Decimal  @db.Decimal(10, 4)
+  feedCostPerKg   Decimal  @db.Decimal(10, 4)
+  mortalityRate   Float
+  margin          Decimal  @db.Decimal(14, 2)
+  profit          Decimal  @db.Decimal(14, 2)
+
+  // Ranking
+  farmRank        Int?
+  houseRank       Int?
+
+  farm            Farm     @relation(fields: [farmId], references: [id])
+  batch           Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("benchmark_entries")
+}
+
+// ==================== AUDIT & RBAC ====================
+enum UserRole {
+  SUPER_ADMIN
+  FARM_ADMIN
+  MANAGER
+  OPERATOR
+  VIEWER
+  AUDITOR
+}
+
+// ==================== FINANCIAL DASHBOARD CACHE ====================
+model FinancialDashboard {
+  id              String   @id @default(uuid())
+  farmId          String
+  period          DashboardPeriod
+  periodValue     String   // e.g., "2024-01-15" or "2024-W03" or "2024-01"
+
+  totalCosts      Decimal  @db.Decimal(14, 2)
+  totalRevenue    Decimal  @db.Decimal(14, 2)
+  totalMargin     Decimal  @db.Decimal(14, 2)
+  ebitda          Decimal  @db.Decimal(14, 2)
+
+  feedCost        Decimal  @db.Decimal(14, 2)
+  energyCost      Decimal  @db.Decimal(14, 2)
+  medicationCost  Decimal  @db.Decimal(14, 2)
+  laborCost       Decimal  @db.Decimal(14, 2)
+
+  activeBatches   Int
+  birdsSold       Int
+  totalWeightSold Float
+  avgPricePerKg   Decimal  @db.Decimal(10, 4)
+
+  updatedAt       DateTime @updatedAt
+
+  @@unique([farmId, period, periodValue])
+  @@map("financial_dashboards")
+}
+
+enum DashboardPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  BATCH
+}

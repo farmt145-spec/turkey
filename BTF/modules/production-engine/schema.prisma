@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== CORE HIERARCHY ====================
+model Nursery {
+  id          String   @id @default(uuid())
+  name        String
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  capacity    Int
+  createdAt   DateTime @default(now())
+
+  houses      House[]
+
+  @@map("nurseries")
+}
+
+model House {
+  id          String   @id @default(uuid())
+  name        String
+  nurseryId   String?
+  nursery     Nursery? @relation(fields: [nurseryId], references: [id])
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  capacity    Int
+  areaSqm     Float?
+  coordinates Json?    // {x, y, width, height} for digital twin
+  status      HouseStatus @default(EMPTY)
+  createdAt   DateTime @default(now())
+
+  sectors     Sector[]
+
+  @@map("houses")
+}
+
+enum HouseStatus {
+  EMPTY
+  OCCUPIED
+  CLEANING
+  QUARANTINE
+  MAINTENANCE
+}
+
+// ==================== BATCH & CHICK RECEIPT ====================
+model Batch {
+  id              String   @id @default(uuid())
+  batchNumber     String   @unique
+  sectorId        String
+  sector          Sector   @relation(fields: [sectorId], references: [id])
+
+  // Chick Receipt
+  receiptDate     DateTime
+  supplier        String
+  hatchery        String
+  hatcheryBatchNo String
+  genetics        String   // e.g., "BUT Big 6", "Nicholas"
+  sex             Sex
+  initialCount    Int
+  avgWeightGrams  Float
+  pricePerUnit    Float
+
+  // Transport
+  transportTime   Int?     // minutes
+  transportTemp   Float?   // celsius
+  transportNotes  String?
+
+  // Documents
+  documents       Document[]
+  photos          Photo[]
+
+  // Production tracking
+  currentCount    Int
+  currentAgeDays  Int      @default(0)
+  currentAvgWeight Float?
+  status          BatchStatus @default(ACTIVE)
+
+  // Relations
+  dailyLogs       DailyLog[]
+  events          ProductionEvent[]
+  aiAnalyses      AIAnalysis[]
+  aiForecasts     AIForecast[]
+  alerts          Alert[]
+  feedRecipes     FeedRecipe[]
+  vaccinations    Vaccination[]
+  treatments      Treatment[]
+  weighings       Weighing[]
+  transfers       Transfer[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("batches")
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  MIXED
+}
+
+enum BatchStatus {
+  ACTIVE
+  TRANSFERRED
+  PARTIAL_TRANSFER
+  SOLD
+  CLOSED
+}
+
+// ==================== DAILY LOGS ====================
+model DailyLog {
+  id              String   @id @default(uuid())
+  batchId         String
+  batch           Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  dayNumber       Int
+  logDate         DateTime
+
+  // Mortality
+  mortalityCount  Int      @default(0)
+  mortalityReason String?
+
+  // Weight
+  avgWeightGrams  Float?
+  sampleSize      Int?
+
+  // Feed & Water
+  feedConsumedKg  Float?
+  waterConsumedL  Float?
+  feedType        String?
+
+  // Environment
+  temperatureMin  Float?
+  temperatureMax  Float?
+  temperatureAvg  Float?
+  humidityPercent Float?
+  co2Ppm          Float?
+  nh3Ppm          Float?
+  lightingHours   Float?
+
+  // Notes & Media
+  notes           String?
+  photos          Photo[]
+  videos          Video[]
+  attachments     Document[]
+
+  // Calculated fields (updated by AI or triggers)
+  fcr             Float?
+  adgGrams        Float?
+  epef            Float?
+
+  createdBy       String
+  createdAt       DateTime @default(now())
+
+  @@unique([batchId, dayNumber])
+  @@map("daily_logs")
+}
+
+// ==================== AI ANALYSIS ====================
+model AIAnalysis {
+  id              String   @id @default(uuid())
+  batchId         String
+  batch           Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  dayNumber       Int
+
+  // Metrics analyzed
+  fcr             Float?
+  adgGrams        Float?
+  epef            Float?
+  mortalityRate   Float?
+  tempScore       Float?   // 0-100
+  waterScore      Float?
+  feedScore       Float?
+  humidityScore   Float?
+  co2Score        Float?
+  nh3Score        Float?
+
+  // AI Outputs
+  dayScore        Float    // Overall 0-100
+  riskLevel       RiskLevel
+  detectedIssues  Json?    // Array of issues
+  possibleCauses  Json?    // Array of causes
+  recommendations Json?    // Array of recommendations
+  forecast7Days   Json?    // Array of 7-day predictions
+
+  createdAt       DateTime @default(now())
+
+  @@map("ai_analyses")
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model AIForecast {
+  id              String   @id @default(uuid())
+  batchId         String
+  batch           Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  // End-of-batch predictions
+  predictedFinalWeight Float
+  predictedFCR    Float
+  predictedEPEF   Float
+  totalFeedConsumptionKg Float
+  totalCost       Float
+  predictedRevenue Float
+  predictedProfit Float
+  predictedMargin Float
+  accuracyPercent Float?   // Historical accuracy
+
+  generatedAt     DateTime @default(now())
+
+  @@map("ai_forecasts")
+}
+
+// ==================== ALERTS & EVENTS ====================
+model Alert {
+  id              String   @id @default(uuid())
+  batchId         String
+  batch           Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  type            AlertType
+  severity        RiskLevel
+  title           String
+  description     String
+  justification   String   // AI reasoning
+  isResolved      Boolean  @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  createdAt       DateTime @default(now())
+
+  @@map("alerts")
+}
+
+enum AlertType {
+  FCR_DETERIORATION
+  FEED_DROP
+  WATER_SPIKE
+  MORTALITY_RISE
+  ENVIRONMENTAL
+  NUTRITIONAL
+  HEALTH
+  TEMPERATURE_ANOMALY
+  HUMIDITY_ANOMALY
+  CO2_HIGH
+  NH3_HIGH
+}
+
+model ProductionEvent {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  eventType   EventType
+  dayNumber   Int
+  description String
+  metadata    Json?    // Flexible data per event type
+  createdAt   DateTime @default(now())
+
+  @@map("production_events")
+}
+
+enum EventType {
+  CHICK_RECEIPT
+  WEIGHING
+  FEED_CHANGE
+  VACCINATION
+  TREATMENT
+  BREAKDOWN
+  ALERT
+  TEMP_CHANGE
+  TRANSFER
+  SALE
+  CLEANING
+  INSPECTION
+}
+
+// ==================== FEED & HEALTH ====================
+model Vaccination {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  name        String
+  dayNumber   Int
+  method      String   // Drinking water, spray, injection
+  dosage      String
+  batchNo     String
+  expiryDate  DateTime?
+  administeredBy String
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@map("vaccinations")
+}
+
+model Treatment {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  diagnosis   String
+  dayNumber   Int
+  medications Json?    // Array of {name, dosage, duration}
+  administeredBy String
+  outcome     String?
+  cost        Float?
+  createdAt   DateTime @default(now())
+
+  @@map("treatments")
+}
+
+// ==================== TRANSFERS ====================
+// ==================== MEDIA & DOCUMENTS ====================
+model Photo {
+  id          String   @id @default(uuid())
+  url         String
+  caption     String?
+  batchId     String?
+  batch       Batch?   @relation(fields: [batchId], references: [id])
+  dailyLogId  String?
+  dailyLog    DailyLog? @relation(fields: [dailyLogId], references: [id])
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  @@map("photos")
+}
+
+model Video {
+  id          String   @id @default(uuid())
+  url         String
+  caption     String?
+  dailyLogId  String
+  dailyLog    DailyLog @relation(fields: [dailyLogId], references: [id])
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  @@map("videos")
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  name        String
+  url         String
+  type        DocumentType
+  batchId     String?
+  batch       Batch?   @relation(fields: [batchId], references: [id])
+  dailyLogId  String?
+  dailyLog    DailyLog? @relation(fields: [dailyLogId], references: [id])
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  @@map("documents")
+}
+
+enum DocumentType {
+  INVOICE
+  DELIVERY_NOTE
+  VET_CERTIFICATE
+  TRANSPORT_DOC
+  QUALITY_CERT
+  CONTRACT
+  OTHER
+}
+
+// ==================== USERS & RBAC ====================
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  FARM_MANAGER
+  HOUSE_SUPERVISOR
+  VETERINARIAN
+  OPERATOR
+  VIEWER
+}
+
+// ==================== AUDIT LOG ====================
+// ==================== DEMO MODE ====================
+model DemoState {
+  id          String   @id @default(uuid())
+  isDemoMode  Boolean  @default(false)
+  demoDataGeneratedAt DateTime?
+  config      Json?    // Demo scenario configuration
+
+  @@map("demo_state")
+}

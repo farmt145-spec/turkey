@@ -1,0 +1,26 @@
+# BTE HYBRID — lokalna baza DEVELOPMENT (MySQL 8)
+# Użycie:  docker compose -f docker-compose.dev.yml up -d
+#          DATABASE_URL=mysql://bte:bte_dev_local@127.0.0.1:3307/bte_dev
+# NIGDY nie podłączaj do produkcji. Baza jest wyłącznie lokalna.
+services:
+  mysql-dev:
+    image: mysql:8.0
+    container_name: bte-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: bte_root_local
+      MYSQL_DATABASE: bte_dev
+      MYSQL_USER: bte
+      MYSQL_PASSWORD: bte_dev_local
+    ports:
+      - "3307:3306"
+    volumes:
+      - bte-mysql-dev-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ubte", "-pbte_dev_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  bte-mysql-dev-data:

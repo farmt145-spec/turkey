@@ -1,0 +1,397 @@
+.experiment-lab {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.experiment-lab header {
+  margin-bottom: 24px;
+}
+
+.experiment-lab h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.experiment-builder {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+}
+
+.experiment-name-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  margin-bottom: 16px;
+}
+
+.changes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.change-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #f7fafc;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.change-row select,
+.change-row input {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.change-row select:first-child {
+  flex: 2;
+}
+
+.remove-change {
+  background: #fed7d7;
+  color: #c53030;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.experiment-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.add-change-btn {
+  padding: 10px 20px;
+  background: #edf2f7;
+  border: 1px dashed #a0aec0;
+  border-radius: 8px;
+  color: #4a5568;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.run-experiment-btn {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.run-experiment-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.experiment-result {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 24px;
+}
+
+.experiment-result h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 16px;
+}
+
+.risk-banner {
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-banner.level-low {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+}
+
+.risk-banner.level-medium {
+  background: #fffaf0;
+  border: 1px solid #fbd38d;
+}
+
+.risk-banner.level-high {
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+}
+
+.risk-banner.level-critical {
+  background: #fed7d7;
+  border: 2px solid #e53e3e;
+}
+
+.risk-label {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.risk-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.risk-factor {
+  font-size: 13px;
+  color: #c53030;
+}
+
+.changes-summary {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.changes-summary h4 {
+  margin-bottom: 12px;
+  color: #2d3748;
+}
+
+.change-summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.change-material {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.change-action {
+  color: #718096;
+  font-size: 13px;
+}
+
+.change-values {
+  color: #4299e1;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.production-impact h4 {
+  margin-bottom: 12px;
+  color: #2d3748;
+}
+
+.impact-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.impact-result-card {
+  padding: 16px;
+  border-radius: 10px;
+  text-align: center;
+  border: 2px solid #e2e8f0;
+}
+
+.impact-result-card.positive {
+  background: #f0fff4;
+  border-color: #9ae6b4;
+}
+
+.impact-result-card.negative {
+  background: #fff5f5;
+  border-color: #fc8181;
+}
+
+.impact-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #718096;
+  letter-spacing: 0.5px;
+}
+
+.impact-values {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.base-value {
+  color: #a0aec0;
+  font-size: 14px;
+}
+
+.arrow {
+  color: #718096;
+}
+
+.simulated-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.impact-change {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.impact-change.good {
+  color: #38a169;
+}
+
+.impact-change.bad {
+  color: #e53e3e;
+}
+
+.nutrition-comparison h4 {
+  margin-bottom: 12px;
+  color: #2d3748;
+}
+
+.nutrition-table {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.nutrition-table .table-header,
+.nutrition-table .table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  padding: 10px 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.nutrition-table .table-header {
+  background: #f7fafc;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.nutrition-table .table-row {
+  border-top: 1px solid #e2e8f0;
+}
+
+.nutrition-table .table-row.out-of-range {
+  background: #fff5f5;
+}
+
+.nutrition-table .positive {
+  color: #38a169;
+}
+
+.nutrition-table .negative {
+  color: #e53e3e;
+}
+
+.status.ok {
+  color: #38a169;
+  font-weight: 600;
+}
+
+.status.warning {
+  color: #c53030;
+  font-weight: 600;
+}
+
+.recommendations {
+  margin-top: 20px;
+  padding: 16px;
+  background: #ebf8ff;
+  border-radius: 8px;
+  border-left: 4px solid #4299e1;
+}
+
+.recommendations h4 {
+  color: #2b6cb0;
+  margin-bottom: 8px;
+}
+
+.recommendations ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #2c5282;
+}
+
+.experiments-history {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.experiments-history h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: #2d3748;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.history-item:hover,
+.history-item.active {
+  background: #f7fafc;
+}
+
+.history-name {
+  flex: 1;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+.history-risk {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.history-risk.low { background: #c6f6d5; color: #22543d; }
+.history-risk.medium { background: #feebc8; color: #c05621; }
+.history-risk.high { background: #fed7d7; color: #c53030; }
+.history-risk.critical { background: #e53e3e; color: white; }
+
+.history-date {
+  font-size: 12px;
+  color: #a0aec0;
+}
