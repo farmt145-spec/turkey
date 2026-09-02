@@ -61,6 +61,7 @@ Required backend variables:
 ```text
 DATABASE_URL=mysql://...
 JWT_SECRET=<długi losowy sekret>
+API_KEY_PEPPER=<drugi długi losowy sekret do haszowania kluczy API>
 NODE_ENV=production
 FRONTEND_URL=https://twoj-site.netlify.app
 CORS_ORIGIN=https://twoj-site.netlify.app

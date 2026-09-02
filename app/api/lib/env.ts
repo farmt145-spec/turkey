@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { randomBytes } from "node:crypto";
 import * as dotenv from "dotenv";
 
 /* Kolejność: realne zmienne środowiskowe > .env (lokalny, gitignored) > .env.preview
@@ -32,6 +33,9 @@ export const env = {
   databaseUrl: process.env.DATABASE_URL ?? "",
   tursoDbUrl: process.env.TURSO_DB_URL ?? process.env.DATABASE_URL ?? "",
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN ?? "",
+  apiKeyPepper: process.env.API_KEY_PEPPER || process.env.SESSION_SECRET || process.env.JWT_SECRET || (
+    process.env.NODE_ENV === "production" ? required("API_KEY_PEPPER") : randomBytes(32).toString("hex")
+  ),
   sessionSecret: process.env.SESSION_SECRET || process.env.JWT_SECRET || (
     process.env.NODE_ENV === "production" ? required("SESSION_SECRET") : "bte-local-session-secret"
   ),

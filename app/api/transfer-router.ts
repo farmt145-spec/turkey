@@ -6,6 +6,7 @@
    ============================================================ */
 import { z } from "zod";
 import { createRouter, authedQuery, adminQuery } from "./middleware";
+import { env } from "./lib/env";
 import { getDb } from "./queries/connection";
 import * as s from "@db/schema";
 import crypto from "crypto";
@@ -60,6 +61,10 @@ const TABLES: { key: string; table: any; label: string }[] = [
   { key: "scenarios", table: s.scenarios, label: "Scenariusze" },
   { key: "benchmarks", table: s.benchmarks, label: "Benchmarki" },
 ];
+
+function hashApiKey(raw: string) {
+  return crypto.createHmac("sha256", env.apiKeyPepper).update(raw).digest("hex");
+}
 
 export const transferRouter = createRouter({
   /* Pełny eksport wszystkich danych chowu */
@@ -130,7 +135,7 @@ export const transferRouter = createRouter({
     .input(z.object({ label: z.string().min(2).max(128) }))
     .mutation(async ({ input }) => {
       const raw = `btk_${crypto.randomBytes(24).toString("hex")}`;
-      const keyHash = crypto.createHash("sha256").update(raw).digest("hex");
+      const keyHash = hashApiKey(raw);
       const keyPrefix = raw.slice(0, 12);
       const [{ id }] = await getDb().insert(s.apiKeys).values({ label: input.label, keyHash, keyPrefix }).returning({ id: s.apiKeys.id });
       // pełny klucz zwracamy RAZ — potem przechowujemy tylko hash
@@ -151,7 +156,7 @@ export const transferRouter = createRouter({
 
 /* Weryfikacja klucza API (używana przez /api/v1/ingest w boot.ts) */
 export async function verifyApiKey(raw: string) {
-  const keyHash = crypto.createHash("sha256").update(raw).digest("hex");
+  const keyHash = hashApiKey(raw);
   const [k] = await getDb().select().from(s.apiKeys).where(eq(s.apiKeys.keyHash, keyHash));
   if (!k || !k.active) return null;
   await getDb().update(s.apiKeys).set({ lastUsedAt: new Date() }).where(eq(s.apiKeys.id, k.id));

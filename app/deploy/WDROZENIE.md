@@ -17,6 +17,7 @@ Kompletna instrukcja publikacji pełnej wersji (frontend + API + MySQL).
 |---|---|---|
 | `DATABASE_URL` | ✅ | np. `mysql://user:haslo@host:3306/bloody_turkey` |
 | `SESSION_SECRET` | ✅ | długi losowy sekret tylko po stronie backendu |
+| `API_KEY_PEPPER` | ✅ | osobny losowy sekret używany do haszowania zapisanych kluczy API |
 | `NODE_ENV` | ✅ | `production` — bez tego API nie uruchomi listenera |
 | `FRONTEND_URL` | ✅ przy osobnym Netlify | pełny adres Netlify, np. `https://bloody-turkey.netlify.app` |
 | `SEED_DEMO` | — | `true` przy pierwszym starze = dane demonstracyjne; potem zmień na `false` |
@@ -35,6 +36,7 @@ Kimi OAuth nie jest używany. Netlify potrzebuje wyłącznie publicznego `VITE_A
 4. W usłudze aplikacji → **Variables**:
    - `DATABASE_URL` → „Reference variable" wskazująca na `DATABASE_URL` z usługi MySQL (Railway poda też `MYSQL_URL`),
    - `JWT_SECRET` → losowy ciąg,
+   - `API_KEY_PEPPER` → drugi niezależny losowy ciąg do kluczy API,
    - `SEED_DEMO=true`.
 5. Plik `railway.toml` w repo zadba o build z `Dockerfile.production`, healthcheck i restart policy.
 6. Po deployu Railway da Ci publiczny adres `https://xxx.up.railway.app` (Settings → Networking → Generate Domain).
