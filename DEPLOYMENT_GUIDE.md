@@ -57,9 +57,23 @@ Wygeneruj sekrety lokalnie:
 node /home/runner/work/Indykpol/Indykpol/scripts/generate-secrets.js
 ```
 
-Skrypt zwraca:
-- `SESSION_SECRET`
-- `API_KEY_PEPPER`
+Skrypt zapisze sekrety do pliku:
+
+```bash
+/tmp/indykpol-secrets.env
+```
+
+Podejrzyj je lokalnie:
+
+```bash
+cat /tmp/indykpol-secrets.env
+```
+
+Następnie usuń plik:
+
+```bash
+rm /tmp/indykpol-secrets.env
+```
 
 Wklej wartości do Netlify Environment Variables.
 
