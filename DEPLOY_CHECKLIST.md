@@ -19,6 +19,12 @@ git push origin HEAD:main
 Create a **new Netlify project** from this repository. The root `netlify.toml`
 already points Netlify to `app` and routes `/api/*` to Netlify Functions.
 
+Current site used for deployment:
+
+```text
+sparkling-phoenix-7b29ee
+```
+
 Build command:
 
 ```bash
@@ -67,6 +73,13 @@ VITE_API_URL=
 
 Leave `VITE_API_URL` empty when the frontend and API run on the same Netlify
 domain. Trigger **Deploy site** again after changing environment variables.
+
+### Agent access note
+
+- The agent can use the Netlify panel only when browser-based OAuth/MCP access is active in the current session.
+- Netlify account authorization is not stored in this repository.
+- Do not commit Netlify tokens, OAuth credentials, database passwords, or other secrets to git.
+- Keep all real values only in **Netlify → Site configuration → Environment variables**.
 
 ## 3. Database
 

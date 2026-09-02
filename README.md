@@ -93,6 +93,12 @@ Important:
 - the default app flow now opens directly into the shared example workspace without a login screen
 - do not expose database credentials in the browser
 
+### Netlify agent note
+
+- The deployment site currently referenced in the project docs is `sparkling-phoenix-7b29ee`.
+- Browser-based OAuth access to Netlify is session-specific and cannot be persisted in the repository.
+- Only non-secret configuration should be stored in git; real Netlify/database secrets must stay in the Netlify UI.
+
 ## Important notes
 
 - the app is designed for a single project architecture and does not create a separate parallel system
