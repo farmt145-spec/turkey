@@ -10,6 +10,7 @@ import { env } from "./lib/env";
 import { getDb } from "./queries/connection";
 import * as s from "@db/schema";
 import crypto from "crypto";
+import { promisify } from "node:util";
 import { desc, eq } from "drizzle-orm";
 
 /* tabele objęte pełnym transferem — kolejność ma znaczenie przy imporcie (rodzice przed dziećmi) */
@@ -62,8 +63,12 @@ const TABLES: { key: string; table: any; label: string }[] = [
   { key: "benchmarks", table: s.benchmarks, label: "Benchmarki" },
 ];
 
-function hashApiKey(raw: string) {
-  return crypto.createHmac("sha256", env.apiKeyPepper).update(raw).digest("hex");
+const scrypt = promisify(crypto.scrypt);
+const API_KEY_HASH_BYTES = 32;
+
+async function hashApiKey(raw: string) {
+  const derived = await scrypt(raw, env.apiKeyPepper, API_KEY_HASH_BYTES) as Buffer;
+  return derived.toString("hex");
 }
 
 export const transferRouter = createRouter({
@@ -135,7 +140,7 @@ export const transferRouter = createRouter({
     .input(z.object({ label: z.string().min(2).max(128) }))
     .mutation(async ({ input }) => {
       const raw = `btk_${crypto.randomBytes(24).toString("hex")}`;
-      const keyHash = hashApiKey(raw);
+      const keyHash = await hashApiKey(raw);
       const keyPrefix = raw.slice(0, 12);
       const [{ id }] = await getDb().insert(s.apiKeys).values({ label: input.label, keyHash, keyPrefix }).returning({ id: s.apiKeys.id });
       // pełny klucz zwracamy RAZ — potem przechowujemy tylko hash
@@ -156,7 +161,7 @@ export const transferRouter = createRouter({
 
 /* Weryfikacja klucza API (używana przez /api/v1/ingest w boot.ts) */
 export async function verifyApiKey(raw: string) {
-  const keyHash = hashApiKey(raw);
+  const keyHash = await hashApiKey(raw);
   const [k] = await getDb().select().from(s.apiKeys).where(eq(s.apiKeys.keyHash, keyHash));
   if (!k || !k.active) return null;
   await getDb().update(s.apiKeys).set({ lastUsedAt: new Date() }).where(eq(s.apiKeys.id, k.id));

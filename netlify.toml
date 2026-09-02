@@ -1,17 +1,12 @@
 [build]
   base = "app"
-  command = "npm install && npm run build && npm run seed:demo"
+  command = "npm install --legacy-peer-deps && npm run build"
   publish = "dist/public"
   functions = "netlify/functions"
 
 [[redirects]]
-  from = "/api/trpc/*"
-  to = "/.netlify/functions/trpc/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/api/demo-login"
-  to = "/.netlify/functions/demo-login"
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
   status = 200
 
 [[redirects]]

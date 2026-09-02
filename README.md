@@ -44,24 +44,30 @@ npm run build
 
 ## Netlify deployment
 
-Use the app folder as the site root.
+Create a new Netlify site from this repository.
 
 ### Build settings
 
-- Base directory: `app`
-- Build command: `npm install --legacy-peer-deps && npx vite build`
-- Publish directory: `dist/public`
+- The repository root `netlify.toml` is ready for a fresh Netlify project.
+- If you enter settings manually, use:
+  - Base directory: `app`
+  - Build command: `npm install --legacy-peer-deps && npm run build`
+  - Publish directory: `dist/public`
+  - Functions directory: `netlify/functions`
 
-### Required environment variable
+### Required environment variables
 
 ```bash
-VITE_API_URL=https://your-backend.example.com
+TURSO_DB_URL=libsql://<db>-<org>.turso.io
+TURSO_AUTH_TOKEN=<turso-token>
+SESSION_SECRET=<long-random-secret>
+API_KEY_PEPPER=<second-long-random-secret>
 ```
 
 Important:
-- the frontend is static and should be hosted on Netlify
-- MySQL / database / backend should not be exposed publicly
-- keep database and API on a separate secure backend service (for example Railway, Render, Azure App Service, or a custom private runtime)
+- Netlify serves the frontend and the `/api/*` endpoints through Netlify Functions.
+- `VITE_API_URL` is optional; leave it empty to use the same Netlify site for API calls.
+- do not expose database credentials in the browser
 
 ## Important notes
 

@@ -10,7 +10,7 @@ import { env } from "./lib/env";
 import { registerAuthRoutes } from "./auth/routes";
 import { eq } from "drizzle-orm";
 
-const app = new Hono<{ Bindings: HttpBindings }>();
+export const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use(
   "/api/*",
@@ -202,7 +202,9 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 
 export default app;
 
-if (env.isProduction) {
+const isServerlessRuntime = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+if (env.isProduction && !isServerlessRuntime) {
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
