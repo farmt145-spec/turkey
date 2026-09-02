@@ -18,10 +18,10 @@ cat <<'EOF'
    - External Database URL (jeśli potrzebujesz połączeń zewnętrznych)
 
 4) Wklej URL do Netlify jako:
-   DATABASE_URL=******HOST:3306/DB_NAME
+   DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/DATABASE
    DATABASE_TYPE=mysql
 
-5) Uzupełnij pozostałe zmienne z .env.production i wdroż aplikację.
+5) Uzupełnij pozostałe zmienne z .env.production.example i wdroż aplikację.
 
 Gotowe. Pełna instrukcja: DEPLOYMENT_GUIDE.md
 EOF
