@@ -24,7 +24,7 @@ Kompletna instrukcja publikacji pełnej wersji (frontend + API + MySQL).
 | `UPLOAD_DIR` | — | domyślnie `/data/uploads` (Render) — katalog na wgrywane pliki |
 | `PORT` | — | platforma ustawia sama |
 
-Kimi OAuth nie jest używany. Netlify potrzebuje wyłącznie publicznego `VITE_API_URL`; sekretów sesji ani bazy nie wolno tam umieszczać.
+Kimi OAuth nie jest używany. W wariancie nowego Netlify z Functions ustaw na Netlify także serwerowe zmienne (`DATABASE_TYPE=mysql`, `DATABASE_URL` albo `TURSO_DB_URL`, `SESSION_SECRET`, `API_KEY_PEPPER`). Sekretów sesji ani bazy nie wolno wystawiać do Vite/frontendu.
 
 ---
 

@@ -57,12 +57,26 @@ Create a new Netlify site from this repository.
 
 ### Required environment variables
 
+For Turso / LibSQL:
+
 ```bash
 TURSO_DB_URL=libsql://<db>-<org>.turso.io
 TURSO_AUTH_TOKEN=<turso-token>
 SESSION_SECRET=<long-random-secret>
 API_KEY_PEPPER=<second-long-random-secret>
 ```
+
+For MySQL on Netlify Functions:
+
+```bash
+DATABASE_TYPE=mysql
+DATABASE_URL=******host:3306/database
+SESSION_SECRET=<long-random-secret>
+API_KEY_PEPPER=<second-long-random-secret>
+```
+
+If you already have a MySQL connection string from Render / Railway, paste that
+value into `DATABASE_URL` on Netlify.
 
 Optional demo mode:
 
@@ -74,6 +88,7 @@ VITE_DEMO_MODE=true
 
 Important:
 - Netlify serves the frontend and the `/api/*` endpoints through Netlify Functions.
+- When `DATABASE_TYPE=mysql`, the Netlify function automatically runs idempotent SQL migrations on cold start.
 - `VITE_API_URL` is optional; leave it empty to use the same Netlify site for API calls.
 - do not expose database credentials in the browser
 

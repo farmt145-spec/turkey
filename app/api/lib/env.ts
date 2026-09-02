@@ -30,8 +30,9 @@ function optional(name: string, fallback = ""): string {
 
 export const env = {
   isProduction: process.env.NODE_ENV === "production",
+  databaseType: (process.env.DATABASE_TYPE ?? "").trim().toLowerCase(),
   databaseUrl: process.env.DATABASE_URL ?? "",
-  tursoDbUrl: process.env.TURSO_DB_URL ?? process.env.DATABASE_URL ?? "",
+  tursoDbUrl: process.env.TURSO_DB_URL ?? "",
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN ?? "",
   apiKeyPepper: process.env.API_KEY_PEPPER || process.env.SESSION_SECRET || process.env.JWT_SECRET || (
     process.env.NODE_ENV === "production" ? required("API_KEY_PEPPER") : randomBytes(32).toString("hex")

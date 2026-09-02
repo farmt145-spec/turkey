@@ -33,9 +33,20 @@ dist/public
 
 In Netlify: **Site configuration → Environment variables → Add variables**:
 
+For Turso / LibSQL:
+
 ```bash
 TURSO_DB_URL=libsql://twoja-baza.turso.io
 TURSO_AUTH_TOKEN=<token-turso>
+SESSION_SECRET=<długi losowy sekret>
+API_KEY_PEPPER=<drugi długi losowy sekret do haszowania kluczy API>
+```
+
+For MySQL (np. connection string z Render / Railway):
+
+```bash
+DATABASE_TYPE=mysql
+DATABASE_URL=******host:3306/baza
 SESSION_SECRET=<długi losowy sekret>
 API_KEY_PEPPER=<drugi długi losowy sekret do haszowania kluczy API>
 ```
@@ -59,8 +70,14 @@ domain. Trigger **Deploy site** again after changing environment variables.
 
 ## 3. Database
 
-Keep the Turso credentials only in Netlify server-side environment variables.
-Do not expose database tokens or connection data in frontend code.
+Keep the database credentials only in Netlify server-side environment variables.
+Do not expose tokens or connection data in frontend code.
+
+If you use MySQL on Netlify:
+- the app uses `DATABASE_TYPE=mysql`
+- the function reads `DATABASE_URL`
+- the function applies idempotent SQL migrations automatically on cold start
+- demo data is seeded automatically when the database is empty
 
 For a local database, run from `app`:
 
@@ -75,7 +92,7 @@ npx tsx db/seed-ingredients.ts
 ```text
 Browser
       --> Netlify frontend + Netlify Functions
-      --> Turso / LibSQL database
+      --> Turso / LibSQL or MySQL database
 ```
 
 ## 5. Local run
