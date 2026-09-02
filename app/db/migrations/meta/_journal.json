@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786762698264,
+      "tag": "0000_full_schema_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1786646824213,
+      "tag": "0011_colossal_cyclops",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1787172400000,
+      "tag": "0012_local_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1787173100000,
+      "tag": "0013_prediction_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1787611373688,
+      "tag": "0014_curious_warlock",
+      "breakpoints": true
+    }
+  ]
+}

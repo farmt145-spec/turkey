@@ -1,0 +1,12 @@
+export enum SourceModule {
+  PRODUCTION = 'PRODUCTION',
+  FEEDING = 'FEEDING',
+  HEALTH = 'HEALTH',
+  ECONOMY = 'ECONOMY',
+  IOT = 'IOT',
+  WAREHOUSE = 'WAREHOUSE',
+  REPORTS = 'REPORTS',
+  AI = 'AI',
+  DIGITAL_TWIN = 'DIGITAL_TWIN',
+  SYSTEM = 'SYSTEM',
+}

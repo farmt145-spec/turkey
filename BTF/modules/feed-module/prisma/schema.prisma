@@ -1,0 +1,1047 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// 1. BAZA SUROWCÓW (Raw Materials)
+// ============================================================
+
+model MaterialBatch {
+  id              String      @id @default(uuid())
+  rawMaterialId   String
+  rawMaterial     RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  batchNumber     String
+  productionDate  DateTime
+  expiryDate      DateTime
+  quantity        Decimal     @db.Decimal(10,3) // kg
+  qualityStatus   BatchStatus @default(PENDING)
+  labResults      Json?       // Wyniki badań laboratoryjnych
+  storageLocation String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([rawMaterialId])
+  @@index([batchNumber])
+  @@map("material_batches")
+}
+
+model RawMaterialSubstitution {
+  id                String      @id @default(uuid())
+  mainMaterialId    String
+  mainMaterial      RawMaterial @relation("MainMaterial", fields: [mainMaterialId], references: [id])
+  substituteId      String
+  substitute        RawMaterial @relation("SubstituteMaterial", fields: [substituteId], references: [id])
+
+  // Różnice wartości pokarmowej
+  energyDiff        Decimal?    @db.Decimal(6,3)
+  proteinDiff       Decimal?    @db.Decimal(6,3)
+  lysineDiff        Decimal?    @db.Decimal(7,4)
+  methionineDiff    Decimal?    @db.Decimal(7,4)
+
+  // Wpływ na wyniki
+  fcrImpact         Decimal?    @db.Decimal(5,3) // +/- %
+  adgImpact         Decimal?    @db.Decimal(5,3)
+  costImpact        Decimal?    @db.Decimal(10,2) // PLN/tona
+
+  // Uzasadnienie
+  reasoning         String      @db.Text
+
+  isApproved        Boolean     @default(false)
+  approvedBy        String?
+  approvedAt        DateTime?
+
+  createdAt         DateTime    @default(now())
+
+  @@unique([mainMaterialId, substituteId])
+  @@map("raw_material_substitutions")
+}
+
+// ============================================================
+// 2. DOSTAWCY
+// ============================================================
+
+model Supplier {
+  id          String        @id @default(uuid())
+  name        String
+  code        String        @unique
+  address     String?
+  contactPerson String?
+  email       String?
+  phone       String?
+  taxId       String?
+
+  // Certyfikacje
+  certifications String[]
+  rating      Int?          @db.SmallInt // 1-5
+
+  materials   RawMaterial[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("suppliers")
+}
+
+// ============================================================
+// 3. NORMY ŻYWIENIOWE (Nutritional Standards)
+// ============================================================
+
+model NutritionalStandard {
+  id                    String    @id @default(uuid())
+  name                  String    // np. "Indyk brojler - starter 0-14 dni"
+  code                  String    @unique
+
+  // Segmentacja
+  species               String    @default("turkey") // zawsze turkey
+  gender                TurkeyGender // MALE, FEMALE, MIXED
+  productionType        ProductionType // BROILER, BREEDER, LAYER
+  phase                 GrowthPhase // STARTER, GROWER, FINISHER, BREEDER_MAINTENANCE
+  ageFromDays           Int
+  ageToDays             Int
+  targetWeightFrom      Decimal?  @db.Decimal(6,3) // kg
+  targetWeightTo        Decimal?  @db.Decimal(6,3)
+
+  // === Makro ===
+  meMin                 Decimal   @db.Decimal(8,3)
+  meMax                 Decimal   @db.Decimal(8,3)
+  crudeProteinMin       Decimal   @db.Decimal(6,3)
+  crudeProteinMax       Decimal   @db.Decimal(6,3)
+  crudeFatMin           Decimal?  @db.Decimal(6,3)
+  crudeFatMax           Decimal?  @db.Decimal(6,3)
+  crudeFiberMax         Decimal   @db.Decimal(6,3)
+  crudeAshMax           Decimal?  @db.Decimal(6,3)
+  starchMin             Decimal?  @db.Decimal(6,3)
+  sugarsMax             Decimal?  @db.Decimal(6,3)
+
+  // === Aminokwasy (%) ===
+  lysineMin             Decimal   @db.Decimal(7,4)
+  lysineMax             Decimal?  @db.Decimal(7,4)
+  methionineMin         Decimal   @db.Decimal(7,4)
+  metCysMin             Decimal   @db.Decimal(7,4)
+  threonineMin          Decimal   @db.Decimal(7,4)
+  tryptophanMin         Decimal   @db.Decimal(7,4)
+  arginineMin           Decimal   @db.Decimal(7,4)
+  valineMin             Decimal   @db.Decimal(7,4)
+  isoleucineMin         Decimal   @db.Decimal(7,4)
+  leucineMin            Decimal?  @db.Decimal(7,4)
+  histidineMin          Decimal?  @db.Decimal(7,4)
+  phenylalanineMin      Decimal?  @db.Decimal(7,4)
+  glycineMin            Decimal?  @db.Decimal(7,4)
+  serineMin             Decimal?  @db.Decimal(7,4)
+
+  // === Minerały (%) ===
+  calciumMin            Decimal   @db.Decimal(7,4)
+  calciumMax            Decimal   @db.Decimal(7,4)
+  totalPhosphorusMin    Decimal   @db.Decimal(7,4)
+  totalPhosphorusMax    Decimal   @db.Decimal(7,4)
+  digestiblePhosphorusMin Decimal @db.Decimal(7,4)
+  sodiumMin             Decimal   @db.Decimal(7,4)
+  sodiumMax             Decimal   @db.Decimal(7,4)
+  chlorideMin           Decimal?  @db.Decimal(7,4)
+  chlorideMax           Decimal?  @db.Decimal(7,4)
+  potassiumMin          Decimal?  @db.Decimal(7,4)
+  potassiumMax          Decimal?  @db.Decimal(7,4)
+  magnesiumMin          Decimal?  @db.Decimal(7,4)
+  magnesiumMax          Decimal?  @db.Decimal(7,4)
+
+  // === Stosunek Ca:P ===
+  caToTotalPMin         Decimal?  @db.Decimal(4,2)
+  caToTotalPMax         Decimal?  @db.Decimal(4,2)
+  caToDigestiblePMin    Decimal?  @db.Decimal(4,2)
+  caToDigestiblePMax    Decimal?  @db.Decimal(4,2)
+
+  // === Elektrolity (mEq/kg) ===
+  sodiumMeqMin          Decimal?  @db.Decimal(8,3)
+  sodiumMeqMax          Decimal?  @db.Decimal(8,3)
+  potassiumMeqMin       Decimal?  @db.Decimal(8,3)
+  potassiumMeqMax       Decimal?  @db.Decimal(8,3)
+  chlorideMeqMin        Decimal?  @db.Decimal(8,3)
+  chlorideMeqMax        Decimal?  @db.Decimal(8,3)
+
+  // === Witaminy (jednostki zależne od witaminy) ===
+  vitaminAMin           Decimal   @db.Decimal(9,3) // IU/kg
+  vitaminD3Min          Decimal   @db.Decimal(9,3)
+  vitaminEMin           Decimal   @db.Decimal(9,3) // mg/kg
+  vitaminK3Min          Decimal   @db.Decimal(9,3)
+  vitaminB1Min          Decimal   @db.Decimal(9,3)
+  vitaminB2Min          Decimal   @db.Decimal(9,3)
+  vitaminB3Min          Decimal   @db.Decimal(9,3)
+  vitaminB5Min          Decimal   @db.Decimal(9,3)
+  vitaminB6Min          Decimal   @db.Decimal(9,3)
+  vitaminB7Min          Decimal   @db.Decimal(9,3)
+  vitaminB9Min          Decimal   @db.Decimal(9,3)
+  vitaminB12Min         Decimal   @db.Decimal(9,3)
+  cholineMin            Decimal   @db.Decimal(9,3)
+
+  // === Minerały śladowe (mg/kg) ===
+  ironMin               Decimal?  @db.Decimal(9,3)
+  copperMin             Decimal?  @db.Decimal(9,3)
+  manganeseMin          Decimal?  @db.Decimal(9,3)
+  zincMin               Decimal?  @db.Decimal(9,3)
+  seleniumMin           Decimal?  @db.Decimal(9,3)
+  iodineMin             Decimal?  @db.Decimal(9,3)
+
+  // === Limity mykotoksyn (ppb) ===
+  aflatoxinB1Max        Decimal?  @db.Decimal(9,3)
+  deoxynivalenolMax     Decimal?  @db.Decimal(9,3)
+  zearalenoneMax        Decimal?  @db.Decimal(9,3)
+  ochratoxinAMax        Decimal?  @db.Decimal(9,3)
+  t2ToxinMax            Decimal?  @db.Decimal(9,3)
+  fumonisinMax          Decimal?  @db.Decimal(9,3)
+
+  // === Parametry produkcyjne (cele) ===
+  targetFcr             Decimal?  @db.Decimal(4,3)
+  targetAdg             Decimal?  @db.Decimal(5,3) // g/dzień
+  targetEpef            Decimal?  @db.Decimal(6,3)
+  targetMortalityMax    Decimal?  @db.Decimal(5,2) // %
+
+  // === Status ===
+  isActive              Boolean   @default(true)
+  version               Int       @default(1)
+  effectiveFrom         DateTime  @default(now())
+  effectiveTo           DateTime?
+
+  // === Relacje ===
+  recipes               Recipe[]
+
+  createdBy             String
+  updatedBy             String
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([gender, productionType, phase])
+  @@index([isActive])
+  @@map("nutritional_standards")
+}
+
+// ============================================================
+// 4. RECEPTURY (Recipes)
+// ============================================================
+
+model Recipe {
+  id                  String    @id @default(uuid())
+  name                String
+  code                String    @unique
+  version             Int       @default(1)
+  isActive            Boolean   @default(true)
+
+  // Segmentacja
+  standardId          String
+  standard            NutritionalStandard @relation(fields: [standardId], references: [id])
+
+  // Parametry wejściowe
+  targetAgeDays       Int
+  targetGender        TurkeyGender
+  targetProductionType ProductionType
+
+  // === Składniki ===
+  ingredients         RecipeIngredient[]
+
+  // === Wartości odżywcze obliczone ===
+  calculatedNutrition Json // Pełny profil odżywczy (100+ parametrów)
+
+  // === Ekonomika ===
+  costPerTon          Decimal   @db.Decimal(10,2)
+  costPerKg           Decimal   @db.Decimal(8,4)
+
+  // === AI Metadata ===
+  aiConfidence        Decimal?  @db.Decimal(4,3) // 0-1
+  aiReasoning         String?   @db.Text // Uzasadnienie decyzji AI
+  optimizationTarget  OptimizationTarget @default(COST)
+
+  // === Walidacja ===
+  validationStatus    ValidationStatus @default(PENDING)
+  validationErrors    Json? // Lista błędów walidacji
+  warnings            Json? // Ostrzeżenia eksperckie
+
+  // === Status produkcyjny ===
+  isProductionReady   Boolean   @default(false)
+  approvedBy          String?
+  approvedAt          DateTime?
+
+  // === Historia ===
+  history             RecipeHistory[]
+  expertDecisions     ExpertDecisionLog[]
+  experimentScenarios ExperimentScenario[]
+  comparisonsAsA      RecipeComparison[] @relation("RecipeA")
+  comparisonsAsB      RecipeComparison[] @relation("RecipeB")
+  parentRecipeId      String?
+
+  // === Metadane ===
+  createdBy           String
+  updatedBy           String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([standardId])
+  @@index([isActive])
+  @@index([validationStatus])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id              String      @id @default(uuid())
+  recipeId        String
+  recipe          Recipe      @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  rawMaterialId   String
+  rawMaterial     RawMaterial @relation(fields: [rawMaterialId], references: [id])
+
+  percentage      Decimal     @db.Decimal(6,3) // Udział %
+  quantityKg      Decimal     @db.Decimal(10,3) // kg na tonę
+
+  // Wartość w recepturze
+  costPerTon      Decimal     @db.Decimal(10,2) // Koszt składnika w tonie paszy
+
+  // === AI Explanation ===
+  aiExplanation     String?   @db.Text // Dlaczego ten składnik
+  aiImpactFcr       Decimal?  @db.Decimal(5,3)
+  aiImpactAdg       Decimal?  @db.Decimal(5,3)
+  aiImpactMortality Decimal?  @db.Decimal(5,3)
+  aiImpactGutHealth Decimal?  @db.Decimal(5,3)
+  aiImpactImmunity  Decimal?  @db.Decimal(5,3)
+  aiImpactLitter    Decimal?  @db.Decimal(5,3)
+  aiImpactLegs      Decimal?  @db.Decimal(5,3)
+  aiImpactWater     Decimal?  @db.Decimal(5,3)
+  aiImpactCost      Decimal?  @db.Decimal(10,2)
+
+  // === Alternatywy ===
+  alternatives      Json? // Lista proponowanych zamienników
+
+  // === Kolejność mieszania ===
+  mixingOrder       Int       @default(0)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([recipeId, rawMaterialId])
+  @@index([recipeId])
+  @@map("recipe_ingredients")
+}
+
+model RecipeHistory {
+  id              String    @id @default(uuid())
+  recipeId        String
+  recipe          Recipe    @relation(fields: [recipeId], references: [id])
+
+  version         Int
+  changeType      ChangeType // CREATE, UPDATE, OPTIMIZE, CLONE
+  changesSummary  String    @db.Text
+  diff            Json      // Różnice względem poprzedniej wersji
+
+  previousValues  Json?     // Poprzednie wartości
+  newValues       Json?     // Nowe wartości
+
+  comment         String?
+  changedBy       String
+  changedAt       DateTime  @default(now())
+
+  @@index([recipeId])
+  @@index([changedAt])
+  @@map("recipe_history")
+}
+
+// ============================================================
+// 5. RZUTY PRODUKCYJNE (Production Batches)
+// ============================================================
+
+model ProductionBatch {
+  id                String    @id @default(uuid())
+  name              String    // np. "RZUT-2026-001"
+  code              String    @unique
+
+  // Parametry rzutu
+  startDate         DateTime
+  endDate           DateTime?
+  initialCount      Int       // Liczba indyków na start
+  currentCount      Int?
+
+  gender            TurkeyGender
+  productionType    ProductionType
+  breed             String?   // Rasa
+
+  // Receptury przypisane
+  recipes           BatchRecipeAssignment[]
+
+  // === Wyniki produkcyjne ===
+  results           ProductionResult[]
+  forecasts         BatchForecast[]
+
+  // === Status ===
+  status            BatchStatus @default(PLANNED)
+
+  // === Farmy i hale ===
+  farmId            String?
+  houseId           String?
+
+  createdBy         String
+  updatedBy         String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
+  @@index([startDate])
+  @@map("production_batches")
+}
+
+model BatchRecipeAssignment {
+  id              String          @id @default(uuid())
+  batchId         String
+  batch           ProductionBatch @relation(fields: [batchId], references: [id])
+
+  recipeId        String
+  // recipe nie jest bezpośrednią relacją - może być kopią
+  recipeName      String
+  recipeVersion   Int
+
+  phase           GrowthPhase
+  ageFromDays     Int
+  ageToDays       Int
+
+  feedConsumption Decimal?        @db.Decimal(10,3) // kg zużyte
+
+  assignedAt      DateTime        @default(now())
+  assignedBy      String
+
+  @@index([batchId])
+  @@map("batch_recipe_assignments")
+}
+
+model ProductionResult {
+  id                  String          @id @default(uuid())
+  batchId             String
+  batch               ProductionBatch @relation(fields: [batchId], references: [id])
+
+  // Okres raportowania
+  reportDate          DateTime
+  ageDays             Int
+  weekNumber          Int
+
+  // === Parametry produkcyjne ===
+  liveCount           Int
+  mortalityCount      Int
+  mortalityCumulative Decimal?        @db.Decimal(5,2) // %
+  cullsCount          Int?
+
+  // Waga
+  avgWeight           Decimal?        @db.Decimal(6,3) // kg
+  uniformityCv        Decimal?        @db.Decimal(5,2) // % CV
+
+  // === Zużycie ===
+  feedConsumedKg      Decimal?        @db.Decimal(10,3)
+  feedConsumedPerBird Decimal?        @db.Decimal(8,3) // kg/indyka
+  waterConsumedLiters Decimal?        @db.Decimal(10,3)
+  waterToFeedRatio    Decimal?        @db.Decimal(4,2)
+
+  // === Wskaźniki ===
+  fcr                 Decimal?        @db.Decimal(4,3)
+  adg                 Decimal?        @db.Decimal(5,3) // g/dzień
+  epef                Decimal?        @db.Decimal(6,3)
+
+  // === Zdrowie ===
+  treatmentsCount     Int?
+  antibioticsUsed     Boolean?        @default(false)
+  gutHealthScore      Int?            @db.SmallInt // 1-10
+  legProblemsCount    Int?
+
+  // === Ściółka ===
+  litterQualityScore  Int?            @db.SmallInt // 1-10
+  ammoniaLevel        Decimal?        @db.Decimal(5,2) // ppm
+
+  // === Środowisko ===
+  avgTemperature      Decimal?        @db.Decimal(4,1) // °C
+  avgHumidity         Decimal?        @db.Decimal(4,1) // %
+
+  // === AI Learning ===
+  aiAnalyzed          Boolean         @default(false)
+  aiRecommendations   String?         @db.Text
+  suggestedRecipeChanges Json?        // Sugerowane zmiany w recepturze
+
+  createdBy           String
+  createdAt           DateTime        @default(now())
+
+  @@unique([batchId, ageDays])
+  @@index([batchId])
+  @@index([reportDate])
+  @@map("production_results")
+}
+
+// ============================================================
+// 6. ALARMY I OSTRZEŻENIA
+// ============================================================
+
+model FeedAlert {
+  id              String      @id @default(uuid())
+  type            AlertType
+  severity        AlertSeverity
+
+  // Źródło
+  sourceType      AlertSource // RECIPE, MATERIAL, BATCH, STANDARD
+  sourceId        String
+
+  // Treść
+  title           String
+  message         String      @db.Text
+  parameter       String?     // Nazwa parametru, np. "sodium"
+  actualValue     Decimal?    @db.Decimal(10,4)
+  thresholdValue  Decimal?    @db.Decimal(10,4)
+  unit            String?
+
+  // Konsekwencje
+  consequences    String[]    // Lista konsekwencji
+  recommendations String[]    // Zalecenia
+
+  // Status
+  status          AlertStatus @default(ACTIVE)
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  resolvedBy      String?
+  resolvedAt      DateTime?
+
+  createdAt       DateTime    @default(now())
+
+  @@index([sourceType, sourceId])
+  @@index([status, severity])
+  @@index([createdAt])
+  @@map("feed_alerts")
+}
+
+// ============================================================
+// 7. MAGAZYN (Inventory)
+// ============================================================
+
+model FeedInventory {
+  id              String      @id @default(uuid())
+  rawMaterialId   String
+  rawMaterial     RawMaterial @relation(fields: [rawMaterialId], references: [id])
+
+  quantityKg      Decimal     @db.Decimal(12,3)
+  reservedKg      Decimal     @db.Decimal(12,3) @default(0)
+  availableKg     Decimal     @db.Decimal(12,3)
+
+  storageLocation String?
+  lastMovementAt  DateTime?
+
+  minStockLevel   Decimal?    @db.Decimal(12,3) // Minimalny poziom
+  reorderPoint    Decimal?    @db.Decimal(12,3) // Punkt zamówienia
+
+  updatedAt       DateTime    @updatedAt
+
+  @@index([rawMaterialId])
+  @@map("feed_inventory")
+}
+
+// ============================================================
+// 8. UŻYTKOWNICY (część wspólna z głównym systemem)
+// ============================================================
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum RawMaterialCategory {
+  CEREAL
+  PROTEIN_PLANT
+  PROTEIN_ANIMAL
+  OILSEED_MEAL
+  OILS_FATS
+  MINERAL
+  VITAMIN
+  AMINO_ACID
+  ENZYME
+  ADDITIVE
+  FORAGE
+  BYPRODUCT
+  PREMIX
+  LIQUID
+}
+
+enum MaterialStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  DISCONTINUED
+  QUARANTINE
+}
+
+enum BatchStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  QUARANTINE
+  EXPIRED
+}
+
+enum TurkeyGender {
+  MALE
+  FEMALE
+  MIXED
+}
+
+enum ProductionType {
+  BROILER
+  BREEDER
+  LAYER
+  RESEARCH
+}
+
+enum GrowthPhase {
+  PRE_STARTER
+  STARTER
+  GROWER
+  FINISHER
+  WITHDRAWAL
+  BREEDER_MAINTENANCE
+  BREEDER_REARING
+  BREEDER_PRODUCTION
+}
+
+enum OptimizationTarget {
+  COST
+  FCR
+  ADG
+  EPEF
+  HEALTH
+  BALANCED
+}
+
+enum ValidationStatus {
+  PENDING
+  VALID
+  INVALID
+  WARNING
+}
+
+enum ChangeType {
+  CREATE
+  UPDATE
+  OPTIMIZE
+  CLONE
+  DELETE
+  APPROVE
+  REJECT
+}
+
+enum BatchStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum AlertType {
+  NUTRITIONAL_EXCESS
+  NUTRITIONAL_DEFICIENCY
+  MYCOTOXIN_RISK
+  COST_EXCESS
+  INVENTORY_LOW
+  QUALITY_ISSUE
+  AI_RECOMMENDATION
+  STANDARD_VIOLATION
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  EMERGENCY
+}
+
+enum AlertSource {
+  RECIPE
+  MATERIAL
+  BATCH
+  STANDARD
+  INVENTORY
+  SYSTEM
+}
+
+enum UserRole {
+  ADMIN
+  NUTRITIONIST
+  PRODUCTION_MANAGER
+  VETERINARIAN
+  VIEWER
+  AI_SYSTEM
+}
+
+
+// ============================================================
+// ROZSZERZENIE v2.0 — EKSPERTYZA, WIEDZA, SYMULACJE, PROGNOZY
+// ============================================================
+
+// 1. EKSPERTYZA SUROWCA — pełna karta ekspercka
+model MaterialExpertProfile {
+  id                String      @id @default(uuid())
+  rawMaterialId     String      @unique
+  rawMaterial       RawMaterial @relation(fields: [rawMaterialId], references: [id])
+
+  // Opis ekspercki
+  description       String      @db.Text
+  biologicalValue   String      @db.Text
+  digestibility     String      @db.Text // Opis strawności
+
+  // Wpływy na produkcję (skala -5 do +5, tekstowe uzasadnienie)
+  impactFcr         String      @db.Text
+  impactAdg         String      @db.Text
+  impactEpef        String      @db.Text
+  impactGutHealth   String      @db.Text
+  impactImmunity    String      @db.Text
+  impactLitter      String      @db.Text
+  impactWater       String      @db.Text
+  impactLegs        String      @db.Text
+  impactCarcass     String      @db.Text // Jakość tuszki
+
+  // Ryzyka
+  overdoseRisk      String      @db.Text
+  overdoseSymptoms  String[]    // Objawy przedawkowania
+  deficiencySymptoms String[]   // Objawy niedoboru
+
+  // Zalecenia
+  recommendedMin    Decimal     @db.Decimal(5,2)
+  recommendedMax    Decimal     @db.Decimal(5,2)
+  optimalRange      String?     @db.Text
+
+  // Interakcje (JSON: [{ materialId, interaction, severity, description }])
+  interactions      Json
+
+  // Wpływ na mikrobiom
+  microbiomeImpact  String?     @db.Text
+  prebioticEffect   Boolean     @default(false)
+
+  // Parametry przetwarzania
+  processingNotes   String?     @db.Text
+  storageConditions String?     @db.Text
+  shelfLifeNotes    String?     @db.Text
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  updatedBy         String
+
+  @@map("material_expert_profiles")
+}
+
+// 2. BIBLIOTEKA WIEDZY — publikacje, normy, błędy
+model MaterialKnowledgeEntry {
+  id              String    @id @default(uuid())
+  rawMaterialId   String
+  rawMaterial     RawMaterial @relation(fields: [rawMaterialId], references: [id])
+
+  type            KnowledgeType // PUBLICATION, MANUFACTURER_GUIDE, STANDARD, COMMON_MISTAKE, RESEARCH_PAPER
+  title           String
+  source          String      // Źródło: NRC, CVB, INRA, producent, czasopismo
+  year            Int?
+  authors         String?
+  url             String?
+  doi             String?
+
+  // Treść
+  summary         String      @db.Text
+  keyFindings     String[]    // Kluczowe wnioski
+  recommendations String[]    // Zalecenia praktyczne
+
+  // Metadane
+  language        String      @default("en")
+  credibility     Int         @db.SmallInt // 1-10
+  isPeerReviewed  Boolean     @default(false)
+
+  // Tagi i kategorie
+  tags            String[]
+  applicablePhases GrowthPhase[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([rawMaterialId])
+  @@index([type])
+  @@map("material_knowledge_entries")
+}
+
+// 3. LOG DECYZJI EKSPERTA AI — każda decyzja z uzasadnieniem
+model ExpertDecisionLog {
+  id              String    @id @default(uuid())
+  recipeId        String
+  recipe          Recipe    @relation(fields: [recipeId], references: [id])
+
+  decisionType    DecisionType // INGREDIENT_ADD, INGREDIENT_REMOVE, INGREDIENT_ADJUST, SUBSTITUTION, OPTIMIZATION
+  targetMaterialId String?
+
+  // Decyzja
+  action          String    @db.Text // "Zwiększyłem kukurydzę z 45% do 50%"
+  reasoning       String    @db.Text // Pełne uzasadnienie eksperckie
+  improvements    String[]  // Co poprawiłem
+  threats         String[]  // Jakie są zagrożenia
+  alternatives    String[]  // Czy istnieje lepsza alternatywa
+
+  // Wpływ na produkcję (szacunki)
+  estimatedFcrChange    Decimal?  @db.Decimal(5,3)
+  estimatedAdgChange    Decimal?  @db.Decimal(5,3)
+  estimatedCostChange   Decimal?  @db.Decimal(10,2)
+  estimatedHealthChange Decimal?  @db.Decimal(5,3)
+
+  // Wskaźniki przed i po
+  beforeState     Json      // Stan receptury przed decyzją
+  afterState      Json      // Stan receptury po decyzji
+
+  // Uczenie
+  wasCorrect      Boolean?  // Czy decyzja była poprawna (weryfikacja po rzucie)
+  userFeedback    String?   @db.Text // Feedback użytkownika
+
+  createdBy       String    // AI_SYSTEM lub użytkownik
+  createdAt       DateTime  @default(now())
+
+  @@index([recipeId])
+  @@index([decisionType])
+  @@map("expert_decision_logs")
+}
+
+// 4. SCENARIUSZE EKSPERYMENTÓW — "Co będzie jeśli..."
+model ExperimentScenario {
+  id              String    @id @default(uuid())
+  name            String    // Nazwa eksperymentu
+  description     String    @db.Text
+
+  // Bazowa receptura
+  baseRecipeId    String
+  baseRecipe      Recipe    @relation(fields: [baseRecipeId], references: [id])
+
+  // Zmiany
+  changes         Json      // [{ materialId, action: "REMOVE"|"ADD"|"ADJUST", value }]
+
+  // Wyniki symulacji
+  simulatedResults Json     // Pełne wyniki symulacji
+
+  // Porównanie
+  fcrChange       Decimal?  @db.Decimal(5,3)
+  adgChange       Decimal?  @db.Decimal(5,3)
+  costChange      Decimal?  @db.Decimal(10,2)
+  healthChange    Decimal?  @db.Decimal(5,3)
+  waterChange     Decimal?  @db.Decimal(5,3)
+  feedIntakeChange Decimal? @db.Decimal(5,3)
+  riskLevel       String    @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+
+  // Status
+  status          ExperimentStatus @default(DRAFT)
+
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([baseRecipeId])
+  @@map("experiment_scenarios")
+}
+
+// 5. PROGNOZY RZUTU
+model BatchForecast {
+  id              String          @id @default(uuid())
+  batchId         String
+  batch           ProductionBatch @relation(fields: [batchId], references: [id])
+
+  // Prognozy tygodniowe (JSON array)
+  weeklyForecasts Json
+
+  // Prognoza końcowa
+  predictedFcr            Decimal   @db.Decimal(4,3)
+  predictedAdg            Decimal   @db.Decimal(5,3)
+  predictedEpef           Decimal   @db.Decimal(6,3)
+  predictedMortality      Decimal   @db.Decimal(5,2)
+  predictedFeedConsumption Decimal  @db.Decimal(10,3) // kg
+  predictedWaterConsumption Decimal @db.Decimal(10,3) // L
+  predictedFeedCost       Decimal   @db.Decimal(10,2)
+  predictedTotalCost      Decimal   @db.Decimal(12,2)
+  predictedMargin         Decimal   @db.Decimal(12,2)
+
+  // Założenia
+  assumptions     String[]  // Lista założeń prognozy
+  confidenceIntervals Json  // Przedziały ufności
+
+  // Metadane
+  recipeVersion   Int
+  aiModelVersion  String    @default("v2.0")
+
+  createdAt       DateTime  @default(now())
+
+  @@index([batchId])
+  @@map("batch_forecasts")
+}
+
+// 6. DOKŁADNOŚĆ PROGNOZ — samouczenie
+model ForecastAccuracy {
+  id              String    @id @default(uuid())
+  forecastId      String
+  forecast        BatchForecast @relation(fields: [forecastId], references: [id])
+
+  // Rzeczywiste wyniki
+  actualFcr       Decimal   @db.Decimal(4,3)
+  actualAdg       Decimal   @db.Decimal(5,3)
+  actualEpef      Decimal   @db.Decimal(6,3)
+  actualMortality Decimal   @db.Decimal(5,2)
+  actualFeedCost  Decimal   @db.Decimal(10,2)
+
+  // Błędy prognozy
+  fcrError        Decimal   @db.Decimal(5,3) // (prognoza - rzeczywistość) / rzeczywistość
+  adgError        Decimal   @db.Decimal(5,3)
+  epefError       Decimal   @db.Decimal(5,3)
+  mortalityError  Decimal   @db.Decimal(5,3)
+  costError       Decimal   @db.Decimal(5,3)
+
+  // Analiza błędów
+  errorAnalysis   String    @db.Text // Dlaczego prognoza się nie sprawdziła
+  lessonsLearned  String[]  // Wnioski dla przyszłych prognoz
+
+  // Korekta modelu
+  modelAdjustments Json     // Zmiany w modelu AI
+
+  analyzedAt      DateTime  @default(now())
+  analyzedBy      String
+
+  @@index([forecastId])
+  @@map("forecast_accuracy")
+}
+
+// 7. PORÓWNANIA RECEPTUR
+model RecipeComparison {
+  id              String    @id @default(uuid())
+  recipeAId       String
+  recipeA         Recipe    @relation("RecipeA", fields: [recipeAId], references: [id])
+  recipeBId       String
+  recipeB         Recipe    @relation("RecipeB", fields: [recipeBId], references: [id])
+
+  // Werdykt AI
+  winnerId        String?   // ID lepszej receptury (null jeśli remis)
+  verdict         String    @db.Text // Pełne uzasadnienie werdyktu
+
+  // Różnice
+  costDifference      Decimal   @db.Decimal(10,2) // PLN/tona
+  fcrDifference       Decimal   @db.Decimal(5,3)
+  adgDifference       Decimal   @db.Decimal(5,3)
+  epefDifference      Decimal   @db.Decimal(6,3)
+  healthDifference    Decimal   @db.Decimal(5,3)
+  gutHealthDifference Decimal   @db.Decimal(5,3)
+
+  // Szczegółowy raport
+  detailedReport      Json      // Pełny raport porównawczy
+
+  // Zalecenia
+  recommendations     String[]  // Co zrobić z gorszą recepturą
+
+  createdBy           String
+  createdAt           DateTime  @default(now())
+
+  @@unique([recipeAId, recipeBId])
+  @@map("recipe_comparisons")
+}
+
+// 8. PROFIL UŻYTKOWNIKA — uczenie i preferencje
+model UserExpertProfile {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+
+  // Tryb eksperta
+  viewMode        ViewMode  @default(ADVANCED) // BASIC, ADVANCED, EXPERT
+
+  // Preferencje
+  preferredOptimization OptimizationTarget @default(BALANCED)
+  riskTolerance   String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+
+  // Statystyki uczenia
+  decisionsReviewed Int     @default(0)
+  experimentsRun    Int     @default(0)
+  comparisonsMade   Int     @default(0)
+
+  // Osiągnięcia
+  achievements      String[]
+
+  // Historia interakcji z AI
+  aiInteractions    Json[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("user_expert_profiles")
+}
+
+// 9. INTERAKCJE MIĘDZY SKŁADNIKAMI
+model MaterialInteraction {
+  id              String      @id @default(uuid())
+  materialAId     String
+  materialA       RawMaterial @relation("InteractionA", fields: [materialAId], references: [id])
+  materialBId     String
+  materialB       RawMaterial @relation("InteractionB", fields: [materialBId], references: [id])
+
+  interactionType InteractionType // SYNERGY, ANTAGONISM, NEUTRAL, INHIBITION
+  severity          String        @default("MODERATE") // LOW, MODERATE, HIGH, CRITICAL
+
+  // Opis
+  description       String        @db.Text
+  mechanism         String?       @db.Text // Mechanizm biologiczny
+
+  // Wpływ na wartość odżywczą
+  nutrientImpact    Json          // { nutrient: string, impact: "INCREASE"|"DECREASE", percentage }
+
+  // Zalecenia
+  recommendation    String        @db.Text
+  minDistance       Decimal?      @db.Decimal(5,2) // Minimalna odległość w mieszance %
+
+  isVerified        Boolean       @default(false)
+  source            String?       // Źródło wiedzy
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([materialAId, materialBId])
+  @@map("material_interactions")
+}
+
+// ============================================================
+// NOWE ENUMS
+// ============================================================
+
+enum KnowledgeType {
+  PUBLICATION
+  MANUFACTURER_GUIDE
+  STANDARD
+  COMMON_MISTAKE
+  RESEARCH_PAPER
+  CASE_STUDY
+  EXPERT_OPINION
+}
+
+enum DecisionType {
+  INGREDIENT_ADD
+  INGREDIENT_REMOVE
+  INGREDIENT_ADJUST
+  SUBSTITUTION
+  OPTIMIZATION
+  CORRECTION
+  EXPERIMENT
+}
+
+enum ExperimentStatus {
+  DRAFT
+  SIMULATED
+  VALIDATED
+  REJECTED
+  APPLIED
+}
+
+enum ViewMode {
+  BASIC
+  ADVANCED
+  EXPERT
+}
+
+enum InteractionType {
+  SYNERGY
+  ANTAGONISM
+  NEUTRAL
+  INHIBITION
+  COMPETITION
+}

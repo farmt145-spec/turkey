@@ -1,0 +1,1343 @@
+CREATE TABLE IF NOT EXISTS `ai_advisor_logs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`symptoms` json NOT NULL,
+	`inputData` json NOT NULL,
+	`recommendations` json NOT NULL,
+	`confidence` decimal(4,3),
+	`disclaimerShown` boolean NOT NULL DEFAULT true,
+	`veterinarian` varchar(255),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `ai_advisor_logs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `api_keys` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`label` varchar(128) NOT NULL,
+	`keyHash` varchar(64) NOT NULL,
+	`keyPrefix` varchar(12) NOT NULL,
+	`active` boolean NOT NULL DEFAULT true,
+	`lastUsedAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `api_keys_id` PRIMARY KEY(`id`),
+	CONSTRAINT `api_keys_keyHash_unique` UNIQUE(`keyHash`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `audit_log` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`tableName` varchar(64) NOT NULL,
+	`recordId` bigint unsigned NOT NULL,
+	`action` enum('create','update','delete') NOT NULL,
+	`oldValues` json,
+	`newValues` json,
+	`author` varchar(255) NOT NULL DEFAULT 'system',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `audit_log_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `batch_forecasts` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`weeklyForecasts` json NOT NULL,
+	`predictedFcr` decimal(4,3) NOT NULL,
+	`predictedAdg` decimal(5,3) NOT NULL,
+	`predictedEpef` decimal(6,3),
+	`predictedMortalityPct` decimal(5,2),
+	`predictedFeedTons` decimal(8,3),
+	`predictedFeedCost` decimal(12,2),
+	`predictedMargin` decimal(12,2),
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`assumptions` json,
+	`confidenceIntervals` json,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `batch_forecasts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `batches` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`houseId` bigint unsigned NOT NULL,
+	`sectorId` bigint unsigned,
+	`geneticLineId` bigint unsigned,
+	`code` varchar(64) NOT NULL,
+	`geneticLine` varchar(128) NOT NULL,
+	`sex` enum('toms','hens','mixed') NOT NULL,
+	`chickSupplier` varchar(255),
+	`chickPrice` decimal(8,3) NOT NULL DEFAULT '0.000',
+	`startDate` date NOT NULL,
+	`plannedEndDate` date,
+	`initialCount` int NOT NULL,
+	`currentCount` int NOT NULL,
+	`soldCount` int NOT NULL DEFAULT 0,
+	`status` enum('active','closed','planned','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `batches_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `benchmark_entries` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`houseId` bigint unsigned,
+	`period` varchar(32) NOT NULL,
+	`fcr` decimal(5,3),
+	`adg` decimal(7,2),
+	`epef` decimal(7,2),
+	`costPerKg` decimal(10,4),
+	`feedCostPerKg` decimal(10,4),
+	`mortalityRate` decimal(6,4),
+	`margin` decimal(14,2),
+	`profit` decimal(14,2),
+	`farmRank` int,
+	`houseRank` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `benchmark_entries_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `benchmarks` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned,
+	`metric` varchar(64) NOT NULL,
+	`value` decimal(12,4) NOT NULL,
+	`period` varchar(32) NOT NULL,
+	`source` varchar(64) NOT NULL DEFAULT 'internal',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `benchmarks_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `biosecurity_checks` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`area` varchar(128) NOT NULL,
+	`checkName` varchar(255) NOT NULL,
+	`passed` boolean NOT NULL DEFAULT true,
+	`score` int,
+	`inspector` varchar(255) NOT NULL DEFAULT 'system',
+	`note` varchar(500),
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `biosecurity_checks_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `climate_logs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`houseId` bigint unsigned NOT NULL,
+	`ts` timestamp NOT NULL DEFAULT (now()),
+	`tempC` decimal(4,1),
+	`humidityPct` decimal(4,1),
+	`co2Ppm` int,
+	`ammoniaPpm` decimal(5,1),
+	`ventilationPct` int,
+	`source` varchar(32) NOT NULL DEFAULT 'sensor',
+	CONSTRAINT `climate_logs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `companies` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`countryCode` varchar(2) NOT NULL,
+	`baseCurrency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `companies_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `contracts` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`party` varchar(255) NOT NULL,
+	`kind` enum('purchase','sale','service','lease') NOT NULL,
+	`number` varchar(64) NOT NULL,
+	`validFrom` date NOT NULL,
+	`validTo` date,
+	`valueEur` decimal(14,2),
+	`terms` text,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `contracts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `costs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`category` enum('chicks','feed','vet','energy','litter','labor','transport','other') NOT NULL,
+	`amount` decimal(12,2) NOT NULL,
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`day` date NOT NULL,
+	`note` varchar(255),
+	CONSTRAINT `costs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `daily_logs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`mortality` int NOT NULL DEFAULT 0,
+	`culls` int NOT NULL DEFAULT 0,
+	`waterLiters` decimal(12,1),
+	`feedKg` decimal(12,1),
+	`tempC` decimal(4,1),
+	`humidityPct` decimal(4,1),
+	`ammoniaPpm` decimal(5,1),
+	`note` varchar(500),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `daily_logs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `disease_references` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`diseaseId` bigint unsigned NOT NULL,
+	`title` varchar(500) NOT NULL,
+	`authors` varchar(500),
+	`journal` varchar(255),
+	`year` int,
+	`url` varchar(1000),
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `disease_references_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `diseases` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`latinName` varchar(255),
+	`category` enum('viral','bacterial','parasitic','metabolic','fungal','other') NOT NULL,
+	`symptoms` text,
+	`diagnosis` text,
+	`treatmentProtocol` text,
+	`prevention` text,
+	`severity` enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `diseases_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `documents` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`category` enum('vet','contract','invoice','protocol','certificate','other') NOT NULL DEFAULT 'other',
+	`reference` varchar(128),
+	`docDate` date NOT NULL,
+	`url` varchar(500),
+	`note` varchar(500),
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `documents_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `dynamic_entities` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`entity` varchar(64) NOT NULL,
+	`data` json NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `dynamic_entities_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `economics_ai_advisors` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`date` timestamp NOT NULL DEFAULT (now()),
+	`category` enum('feed','energy','health','labor','transport','timing','recipe','general') NOT NULL,
+	`priority` enum('critical','high','medium','low') NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`description` text NOT NULL,
+	`justification` text NOT NULL,
+	`estimatedSavings` decimal(12,2),
+	`estimatedGain` decimal(12,2),
+	`actionTaken` boolean NOT NULL DEFAULT false,
+	`actionResult` varchar(500),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `economics_ai_advisors_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `energy_logs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`kind` enum('power','gas','water','fuel') NOT NULL,
+	`day` date NOT NULL,
+	`consumption` decimal(12,2) NOT NULL,
+	`unit` varchar(16) NOT NULL,
+	`costEur` decimal(12,2) NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `energy_logs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `executive_summaries` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`period` enum('daily','weekly','monthly','batch') NOT NULL DEFAULT 'batch',
+	`strengths` json NOT NULL,
+	`threats` json NOT NULL,
+	`topCosts` json NOT NULL,
+	`profitOpportunities` json NOT NULL,
+	`endForecast` json,
+	`recommendations` json NOT NULL,
+	`metricsSnapshot` json,
+	`generatedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `executive_summaries_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `experiment_scenarios` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`name` varchar(255) NOT NULL,
+	`description` text,
+	`baseRecipeId` bigint unsigned NOT NULL,
+	`changes` json NOT NULL,
+	`experimentStatus` enum('draft','running','completed','abandoned') NOT NULL DEFAULT 'draft',
+	`results` json,
+	`startedAt` timestamp,
+	`completedAt` timestamp,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `experiment_scenarios_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `farms` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`countryCode` varchar(2) NOT NULL,
+	`city` varchar(255) NOT NULL,
+	`lat` decimal(9,5) NOT NULL,
+	`lng` decimal(9,5) NOT NULL,
+	`capacity` int NOT NULL DEFAULT 0,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `farms_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `feed_alerts` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`type` enum('price_spike','stock_low','stock_out','quality_deviation','standard_violation','forecast_deviation','interaction_warning') NOT NULL,
+	`severity` enum('info','warning','critical') NOT NULL DEFAULT 'warning',
+	`sourceType` enum('recipe','ingredient','batch','standard') NOT NULL,
+	`sourceId` bigint unsigned NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`message` text NOT NULL,
+	`parameter` varchar(64),
+	`actualValue` decimal(12,4),
+	`thresholdValue` decimal(12,4),
+	`unit` varchar(32),
+	`consequences` json,
+	`recommendations` json,
+	`alertStatus` enum('active','acknowledged','resolved') NOT NULL DEFAULT 'active',
+	`acknowledgedBy` varchar(255),
+	`acknowledgedAt` timestamp,
+	`resolvedAt` timestamp,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `feed_alerts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `feed_deliveries` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`siloId` bigint unsigned NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`recipeId` bigint unsigned,
+	`day` date NOT NULL,
+	`kg` decimal(12,1) NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `feed_deliveries_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `feed_ingredients` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`name` varchar(255) NOT NULL,
+	`countryCode` varchar(2) NOT NULL,
+	`pricePerTon` decimal(10,2) NOT NULL,
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`proteinPct` decimal(5,2) NOT NULL,
+	`energyKcal` int NOT NULL,
+	`lysinePct` decimal(5,3) NOT NULL DEFAULT '0',
+	`methioninePct` decimal(5,3) NOT NULL DEFAULT '0',
+	`fiberPct` decimal(5,2) NOT NULL DEFAULT '0',
+	`fatPct` decimal(5,2) NOT NULL DEFAULT '0',
+	`calciumPct` decimal(5,2) NOT NULL DEFAULT '0',
+	`phosphorusPct` decimal(5,2) NOT NULL DEFAULT '0',
+	`stockTons` decimal(10,2) NOT NULL DEFAULT '0',
+	`moisturePct` decimal(5,2) NOT NULL DEFAULT '12',
+	`ashPct` decimal(5,2) NOT NULL DEFAULT '0',
+	`starchPct` decimal(5,2) NOT NULL DEFAULT '0',
+	`cystinePct` decimal(5,3) NOT NULL DEFAULT '0',
+	`threoninePct` decimal(5,3) NOT NULL DEFAULT '0',
+	`tryptophanPct` decimal(5,3) NOT NULL DEFAULT '0',
+	`argininePct` decimal(5,3) NOT NULL DEFAULT '0',
+	`sodiumPct` decimal(5,3) NOT NULL DEFAULT '0',
+	`producer` varchar(255),
+	`code` varchar(32),
+	`extraParams` json,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `feed_ingredients_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `feed_program_stages` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`programId` bigint unsigned NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`dayFrom` int NOT NULL,
+	`dayTo` int NOT NULL,
+	`recipeId` bigint unsigned,
+	`proteinTargetPct` decimal(5,2),
+	`energyTargetKcal` int,
+	`feedPerBirdG` int,
+	CONSTRAINT `feed_program_stages_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `feed_programs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`sex` enum('toms','hens','mixed') NOT NULL DEFAULT 'mixed',
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `feed_programs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `feed_usages` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`kg` decimal(12,1) NOT NULL,
+	`recipeId` bigint unsigned,
+	CONSTRAINT `feed_usages_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `forecast_accuracy` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`metric` varchar(64) NOT NULL,
+	`predicted` decimal(12,4) NOT NULL,
+	`actual` decimal(12,4) NOT NULL,
+	`accuracyPct` decimal(6,2) NOT NULL,
+	`day` date NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `forecast_accuracy_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `genetic_lines` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`supplier` varchar(255),
+	`notes` text,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `genetic_lines_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `hatchery_batches` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`geneticLineId` bigint unsigned NOT NULL,
+	`code` varchar(64) NOT NULL,
+	`eggsSet` int NOT NULL,
+	`fertilePct` decimal(5,2),
+	`hatchedCount` int,
+	`hatchPct` decimal(5,2),
+	`setDate` date NOT NULL,
+	`hatchDate` date,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `hatchery_batches_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `health_daily_metrics` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`mortalityRate` decimal(6,3),
+	`fcr` decimal(4,3),
+	`adgGrams` decimal(6,1),
+	`waterPerFeedRatio` decimal(4,2),
+	`notes` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `health_daily_metrics_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `health_record_files` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`healthRecordId` bigint unsigned NOT NULL,
+	`kind` enum('image','document') NOT NULL,
+	`fileName` varchar(255) NOT NULL,
+	`filePath` varchar(1000) NOT NULL,
+	`mimeType` varchar(128),
+	`sizeBytes` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `health_record_files_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `health_records` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`type` enum('vaccination','treatment','supplement','necropsy','inspection') NOT NULL,
+	`day` date NOT NULL,
+	`description` text NOT NULL,
+	`performedBy` varchar(255) NOT NULL,
+	`cost` decimal(10,2),
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `health_records_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `houses` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`houseType` enum('brooder','finisher') NOT NULL,
+	`areaM2` decimal(10,1) NOT NULL,
+	`maxDensityKgM2` decimal(5,1) NOT NULL DEFAULT '42.0',
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `houses_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `integrations` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`sourceModule` varchar(64) NOT NULL,
+	`targetModule` varchar(64) NOT NULL,
+	`kind` enum('api','webhook','device','file') NOT NULL DEFAULT 'api',
+	`config` json,
+	`enabled` boolean NOT NULL DEFAULT true,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `integrations_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `invoices` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`number` varchar(64) NOT NULL,
+	`kind` enum('sale','purchase') NOT NULL,
+	`counterparty` varchar(255) NOT NULL,
+	`issueDate` date NOT NULL,
+	`dueDate` date,
+	`amountNet` decimal(14,2) NOT NULL,
+	`vatPct` int NOT NULL DEFAULT 23,
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`paid` boolean NOT NULL DEFAULT false,
+	`batchId` bigint unsigned,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `invoices_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `iot_ai_predictions` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`deviceId` bigint unsigned,
+	`farmId` bigint unsigned NOT NULL,
+	`houseId` bigint unsigned,
+	`type` enum('anomaly_detection','device_failure','feed_shortage','climate_fcr_impact','climate_mortality_impact','climate_adg_impact') NOT NULL,
+	`modelVersion` varchar(32) NOT NULL DEFAULT '1.0.0',
+	`confidence` decimal(4,2) NOT NULL,
+	`prediction` json NOT NULL,
+	`features` json,
+	`validUntil` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `iot_ai_predictions_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `iot_device_types` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`code` varchar(64) NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`category` enum('climate_controller','temperature_sensor','humidity_sensor','co2_sensor','nh3_sensor','h2s_sensor','airflow_sensor','energy_meter','gas_meter','water_meter','feed_scale','feed_silo_level','feed_auto','drinker','ai_camera','bird_scale','mortality_counter','door_sensor','generator','ups','fire_alarm','disinfection_system','unknown') NOT NULL,
+	`manufacturer` varchar(128),
+	`model` varchar(128),
+	`icon` varchar(64),
+	`defaultConfig` json,
+	`isActive` boolean NOT NULL DEFAULT true,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `iot_device_types_id` PRIMARY KEY(`id`),
+	CONSTRAINT `iot_device_types_code_unique` UNIQUE(`code`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `iot_devices` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`houseId` bigint unsigned,
+	`sectorId` bigint unsigned,
+	`deviceTypeId` bigint unsigned NOT NULL,
+	`code` varchar(64) NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`serialNumber` varchar(128),
+	`macAddress` varchar(32),
+	`ipAddress` varchar(45),
+	`modbusAddress` int,
+	`mqttTopic` varchar(255),
+	`positionX` decimal(8,2),
+	`positionY` decimal(8,2),
+	`config` json,
+	`calibration` json,
+	`status` enum('online','offline','warning','error','maintenance','calibrating') NOT NULL DEFAULT 'offline',
+	`lastSeenAt` timestamp,
+	`firmwareVersion` varchar(64),
+	`isActive` boolean NOT NULL DEFAULT true,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `iot_devices_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `iot_telemetry` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`deviceId` bigint unsigned NOT NULL,
+	`ts` timestamp NOT NULL DEFAULT (now()),
+	`metric` varchar(64) NOT NULL,
+	`rawValue` json NOT NULL,
+	`processedValue` decimal(14,4),
+	`unit` varchar(16),
+	`quality` enum('good','bad','uncertain','sensor_error','calibration_error') NOT NULL DEFAULT 'good',
+	`metadata` json,
+	CONSTRAINT `iot_telemetry_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `knowledge_entries` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`ingredientId` bigint unsigned,
+	`type` enum('publication','manufacturer_guide','standard','common_mistake','research_paper') NOT NULL,
+	`title` varchar(500) NOT NULL,
+	`source` varchar(255) NOT NULL,
+	`year` int,
+	`authors` varchar(500),
+	`url` varchar(1000),
+	`doi` varchar(255),
+	`summary` text NOT NULL,
+	`keyFindings` json,
+	`recommendations` json,
+	`commonMistake` text,
+	`mistakeConsequence` text,
+	`mistakeSolution` text,
+	`credibility` decimal(3,2) NOT NULL DEFAULT '0.50',
+	`isPeerReviewed` boolean NOT NULL DEFAULT false,
+	`applicablePhases` json,
+	`tags` json,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `knowledge_entries_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `lab_results` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`batchId` bigint unsigned,
+	`sampleType` enum('blood','swab','water','feed','litter','carcass') NOT NULL,
+	`testName` varchar(255) NOT NULL,
+	`resultValue` varchar(255) NOT NULL,
+	`unit` varchar(32),
+	`refRange` varchar(64),
+	`verdict` enum('ok','warning','critical') NOT NULL DEFAULT 'ok',
+	`labName` varchar(255),
+	`day` date NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `lab_results_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `litter` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`houseId` bigint unsigned NOT NULL,
+	`material` varchar(128) NOT NULL,
+	`thicknessCm` decimal(4,1) NOT NULL,
+	`moisturePct` decimal(5,2),
+	`cost` decimal(10,2) NOT NULL DEFAULT '0',
+	`laidAt` date NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `litter_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `maintenance_tickets` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`houseId` bigint unsigned,
+	`title` varchar(255) NOT NULL,
+	`description` text,
+	`priority` enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+	`ticketStatus` enum('open','in_progress','done','cancelled') NOT NULL DEFAULT 'open',
+	`reportedBy` varchar(255) NOT NULL DEFAULT 'system',
+	`dueDate` date,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `maintenance_tickets_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `material_batches` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`ingredientId` bigint unsigned NOT NULL,
+	`batchNumber` varchar(64) NOT NULL,
+	`supplierId` bigint unsigned,
+	`quantityTons` decimal(10,3) NOT NULL,
+	`pricePerTon` decimal(10,2) NOT NULL,
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`receivedAt` date NOT NULL,
+	`expiresAt` date,
+	`qualityNotes` text,
+	`labProfile` json,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `material_batches_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `material_interactions` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`ingredientAId` bigint unsigned NOT NULL,
+	`ingredientBId` bigint unsigned NOT NULL,
+	`type` enum('synergy','antagonism','limit') NOT NULL,
+	`description` text NOT NULL,
+	`maxCombinedPct` decimal(5,2),
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `material_interactions_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `material_substitutions` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`ingredientId` bigint unsigned NOT NULL,
+	`substituteId` bigint unsigned NOT NULL,
+	`maxReplacementPct` decimal(5,2) NOT NULL,
+	`nutritionalPenaltyPct` decimal(5,2),
+	`notes` text,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `material_substitutions_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `medicines` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`substance` varchar(255),
+	`form` varchar(64),
+	`stockQty` decimal(12,2) NOT NULL DEFAULT '0',
+	`unit` varchar(16) NOT NULL DEFAULT 'ml',
+	`expiryDate` date,
+	`minStock` decimal(12,2) NOT NULL DEFAULT '0',
+	`pricePerUnit` decimal(10,2),
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `medicines_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `messages` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`author` varchar(255) NOT NULL DEFAULT 'system',
+	`channel` varchar(64) NOT NULL DEFAULT 'general',
+	`body` text NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `messages_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `mortalities` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`count` int NOT NULL,
+	`cause` varchar(255),
+	CONSTRAINT `mortalities_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `necropsy` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`birdCount` int NOT NULL DEFAULT 1,
+	`findings` text NOT NULL,
+	`suspectedDiseaseId` bigint unsigned,
+	`vet` varchar(255) NOT NULL DEFAULT 'system',
+	`verdict` varchar(255),
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `necropsy_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `notifications` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`severity` enum('info','warning','critical') NOT NULL DEFAULT 'info',
+	`title` varchar(255) NOT NULL,
+	`body` varchar(500),
+	`link` varchar(255),
+	`read_flag` boolean NOT NULL DEFAULT false,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `notifications_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `nutritional_standards` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`name` varchar(255) NOT NULL,
+	`code` varchar(64) NOT NULL,
+	`gender` enum('toms','hens','mixed') NOT NULL DEFAULT 'mixed',
+	`productionType` enum('broiler','breeder') NOT NULL DEFAULT 'broiler',
+	`phase` enum('starter','grower','finisher','breeder_maintenance') NOT NULL,
+	`ageFromDays` int NOT NULL,
+	`ageToDays` int NOT NULL,
+	`targetWeightFromKg` decimal(6,3),
+	`targetWeightToKg` decimal(6,3),
+	`meMinKcal` int NOT NULL,
+	`meMaxKcal` int NOT NULL,
+	`proteinMinPct` decimal(5,2) NOT NULL,
+	`proteinMaxPct` decimal(5,2) NOT NULL,
+	`fatMinPct` decimal(5,2),
+	`fatMaxPct` decimal(5,2),
+	`fiberMaxPct` decimal(5,2),
+	`lysineMinPct` decimal(5,3) NOT NULL,
+	`methionineMinPct` decimal(5,3) NOT NULL,
+	`calciumMinPct` decimal(5,2),
+	`calciumMaxPct` decimal(5,2),
+	`phosphorusMinPct` decimal(5,2),
+	`sodiumMinPct` decimal(5,3),
+	`sodiumMaxPct` decimal(5,3),
+	`extraParams` json,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `nutritional_standards_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `production_alerts` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`type` enum('fcr_deterioration','feed_drop','water_spike','mortality_rise','environmental','nutritional','health','temperature_anomaly','humidity_anomaly','co2_high','nh3_high') NOT NULL,
+	`severity` enum('low','medium','high','critical') NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`description` text NOT NULL,
+	`justification` text NOT NULL,
+	`isResolved` boolean NOT NULL DEFAULT false,
+	`resolvedAt` timestamp,
+	`resolvedBy` varchar(255),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `production_alerts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `production_analyses` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`dayNumber` int NOT NULL,
+	`fcr` decimal(5,3),
+	`adgGrams` decimal(7,2),
+	`epef` decimal(7,2),
+	`mortalityRate` decimal(6,4),
+	`tempScore` decimal(5,1),
+	`waterScore` decimal(5,1),
+	`feedScore` decimal(5,1),
+	`humidityScore` decimal(5,1),
+	`co2Score` decimal(5,1),
+	`nh3Score` decimal(5,1),
+	`dayScore` decimal(5,1) NOT NULL,
+	`riskLevel` enum('low','medium','high','critical') NOT NULL,
+	`detectedIssues` json,
+	`possibleCauses` json,
+	`recommendations` json,
+	`forecast7Days` json,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `production_analyses_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `production_events` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`eventType` enum('chick_receipt','weighing','feed_change','vaccination','treatment','breakdown','alert','temp_change','transfer','sale','cleaning','inspection','daily_log') NOT NULL,
+	`dayNumber` int NOT NULL DEFAULT 0,
+	`description` varchar(500) NOT NULL,
+	`metadata` json,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `production_events_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `production_forecasts` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`predictedFinalWeight` decimal(8,1) NOT NULL,
+	`predictedFcr` decimal(5,3) NOT NULL,
+	`predictedEpef` decimal(7,2) NOT NULL,
+	`totalFeedConsumptionKg` decimal(12,1) NOT NULL,
+	`totalCost` decimal(14,2) NOT NULL,
+	`predictedRevenue` decimal(14,2) NOT NULL,
+	`predictedProfit` decimal(14,2) NOT NULL,
+	`predictedMargin` decimal(6,2) NOT NULL,
+	`accuracyPercent` decimal(5,1),
+	`generatedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `production_forecasts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `purchase_orders` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`supplierId` bigint unsigned NOT NULL,
+	`number` varchar(64) NOT NULL,
+	`item` varchar(255) NOT NULL,
+	`quantity` decimal(14,2) NOT NULL,
+	`unit` varchar(16) NOT NULL DEFAULT 'kg',
+	`priceNet` decimal(14,2) NOT NULL,
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`orderDate` date NOT NULL,
+	`deliveryDate` date,
+	`orderStatus` enum('draft','sent','confirmed','delivered','cancelled') NOT NULL DEFAULT 'draft',
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `purchase_orders_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `recipe_history` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`recipeId` bigint unsigned NOT NULL,
+	`changeNote` varchar(500) NOT NULL,
+	`oldProfile` json,
+	`newProfile` json,
+	`expertReport` text,
+	`author` varchar(255) NOT NULL DEFAULT 'system',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `recipe_history_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `recipe_items` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`recipeId` bigint unsigned NOT NULL,
+	`ingredientId` bigint unsigned NOT NULL,
+	`percent` decimal(5,2) NOT NULL,
+	CONSTRAINT `recipe_items_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `recipes` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`name` varchar(255) NOT NULL,
+	`ageGroup` varchar(64) NOT NULL,
+	`strategy` enum('cheapest','maxGrowth','balanced') NOT NULL,
+	`costPerTon` decimal(10,2) NOT NULL,
+	`proteinPct` decimal(5,2) NOT NULL,
+	`energyKcal` int NOT NULL,
+	`lysinePct` decimal(5,3) NOT NULL,
+	`explanation` text,
+	`version` int NOT NULL DEFAULT 1,
+	`author` varchar(128) NOT NULL DEFAULT 'system',
+	`status` enum('draft','active','archived') NOT NULL DEFAULT 'active',
+	`sex` enum('toms','hens','mixed') NOT NULL DEFAULT 'mixed',
+	`season` enum('winter','summer','all') NOT NULL DEFAULT 'all',
+	`genetics` varchar(128),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `recipes_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `risk_scores` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`calculatedAt` timestamp NOT NULL DEFAULT (now()),
+	`healthScore` int NOT NULL,
+	`productionScore` int NOT NULL,
+	`welfareScore` int NOT NULL,
+	`riskScore` int NOT NULL,
+	`factors` json,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `risk_scores_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `sales` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`birdCount` int NOT NULL,
+	`totalWeightKg` decimal(12,1) NOT NULL,
+	`pricePerKg` decimal(6,3) NOT NULL,
+	`currency` varchar(3) NOT NULL DEFAULT 'EUR',
+	`buyer` varchar(255),
+	CONSTRAINT `sales_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `scenario_results` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`description` text,
+	`paramFeedPriceChange` decimal(6,2),
+	`paramSoyPriceChange` decimal(6,2),
+	`paramFcrChange` decimal(5,2),
+	`paramMortalityChange` decimal(6,2),
+	`paramSaleDelayDays` int,
+	`paramGasPriceChange` decimal(6,2),
+	`paramRecipeId` bigint unsigned,
+	`predictedCost` decimal(14,2) NOT NULL,
+	`predictedMargin` decimal(14,2) NOT NULL,
+	`predictedProfit` decimal(14,2) NOT NULL,
+	`predictedCostPerKg` decimal(10,4) NOT NULL,
+	`impactOnProfit` decimal(14,2) NOT NULL,
+	`createdBy` varchar(255) NOT NULL DEFAULT 'system',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `scenario_results_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `scenarios` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned,
+	`name` varchar(255) NOT NULL,
+	`assumptions` json NOT NULL,
+	`result` json NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `scenarios_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `schedule_events` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`eventType` enum('placement','vaccination','weighing','feedChange','litter','treatment','sampling','washing','disinfection','housePrep','sale') NOT NULL,
+	`title` varchar(255) NOT NULL,
+	`done` boolean NOT NULL DEFAULT false,
+	`doneAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `schedule_events_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `sectors` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`houseId` bigint unsigned NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`areaM2` decimal(10,1) NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `sectors_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `selects` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`criteria` varchar(255) NOT NULL,
+	`origin` enum('manual','dynamic') NOT NULL DEFAULT 'manual',
+	`birdCount` int NOT NULL,
+	`avgWeightG` int NOT NULL,
+	`fcr` decimal(5,3),
+	`mortalityPct` decimal(5,2),
+	`waterIntakeMl` int,
+	`status` enum('ok','warning','critical') NOT NULL DEFAULT 'ok',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `selects_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `silos` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`name` varchar(128) NOT NULL,
+	`capacityTons` decimal(10,1) NOT NULL,
+	`currentTons` decimal(10,2) NOT NULL DEFAULT '0',
+	`recipeId` bigint unsigned,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `silos_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `stock_movements` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`lotId` bigint unsigned NOT NULL,
+	`kind` enum('in','out','transfer','adjust') NOT NULL,
+	`qty` decimal(12,2) NOT NULL,
+	`reference` varchar(128),
+	`batchId` bigint unsigned,
+	`day` date NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `stock_movements_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `suppliers` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`category` enum('feed','chicks','medicine','equipment','energy','transport','other') NOT NULL,
+	`countryCode` varchar(2),
+	`nip` varchar(32),
+	`email` varchar(255),
+	`phone` varchar(32),
+	`rating` int NOT NULL DEFAULT 3,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `suppliers_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `tasks` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned NOT NULL,
+	`farmId` bigint unsigned,
+	`title` varchar(255) NOT NULL,
+	`description` text,
+	`assignee` varchar(255),
+	`dueDate` date,
+	`priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',
+	`done` boolean NOT NULL DEFAULT false,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `tasks_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `transfers` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`sourceBatchId` bigint unsigned NOT NULL,
+	`targetBatchId` bigint unsigned NOT NULL,
+	`birdCount` int NOT NULL,
+	`avgWeightG` int,
+	`transportMortality` int NOT NULL DEFAULT 0,
+	`transferDate` timestamp NOT NULL,
+	`durationMin` int,
+	`driver` varchar(255),
+	`vehicle` varchar(255),
+	`signatureFrom` varchar(255),
+	`signatureTo` varchar(255),
+	`documentNo` varchar(64) NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `transfers_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `treatments` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`startedAt` date NOT NULL,
+	`product` varchar(255) NOT NULL,
+	`activeSubstance` varchar(255) NOT NULL,
+	`dose` varchar(128) NOT NULL,
+	`reason` varchar(255),
+	`withdrawalDays` int NOT NULL DEFAULT 0,
+	`vet` varchar(255),
+	`cost` decimal(10,2) NOT NULL DEFAULT '0',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `treatments_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `users` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`unionId` varchar(255) NOT NULL,
+	`name` varchar(255),
+	`email` varchar(320),
+	`avatar` text,
+	`role` enum('user','admin') NOT NULL DEFAULT 'user',
+	`companyId` bigint unsigned,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`lastSignInAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `users_id` PRIMARY KEY(`id`),
+	CONSTRAINT `users_unionId_unique` UNIQUE(`unionId`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `vaccination_program_steps` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`programId` bigint unsigned NOT NULL,
+	`vaccineName` varchar(255) NOT NULL,
+	`ageDays` int NOT NULL,
+	`route` enum('drinking_water','spray','injection_im','injection_sc','eye_drop','wing_web') NOT NULL,
+	`dosePerBird` varchar(64),
+	`notes` text,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `vaccination_program_steps_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `vaccination_programs` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`companyId` bigint unsigned,
+	`name` varchar(255) NOT NULL,
+	`geneticLine` varchar(128),
+	`description` text,
+	`isDefault` boolean NOT NULL DEFAULT false,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `vaccination_programs_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `vaccinations` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`day` date NOT NULL,
+	`vaccine` varchar(255) NOT NULL,
+	`method` varchar(128),
+	`done` boolean NOT NULL DEFAULT false,
+	CONSTRAINT `vaccinations_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_ai_analyses` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`productId` bigint unsigned NOT NULL,
+	`warehouseId` bigint unsigned,
+	`avgDailyConsumption` decimal(12,2) NOT NULL,
+	`currentStock` decimal(14,2) NOT NULL,
+	`daysOfSupply` decimal(8,1) NOT NULL,
+	`stockoutRisk` decimal(4,2) NOT NULL,
+	`expiryRisk` decimal(4,2) NOT NULL,
+	`rotationScore` int NOT NULL,
+	`predictedStockoutDate` date,
+	`recommendedOrderQty` decimal(12,2),
+	`recommendedOrderDate` date,
+	`bestSupplierId` bigint unsigned,
+	`generatedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `warehouse_ai_analyses_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_alerts` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`type` enum('low_stock','expiring_soon','expired','feed_shortage','overstock','quarantine') NOT NULL,
+	`severity` enum('info','warning','critical','emergency') NOT NULL,
+	`productId` bigint unsigned,
+	`lotId` bigint unsigned,
+	`warehouseId` bigint unsigned,
+	`message` varchar(500) NOT NULL,
+	`details` json,
+	`isResolved` boolean NOT NULL DEFAULT false,
+	`resolvedAt` timestamp,
+	`resolvedBy` varchar(255),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `warehouse_alerts_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_lot_details` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`lotId` bigint unsigned NOT NULL,
+	`manufacturer` varchar(255),
+	`productionDate` date,
+	`purchaseCost` decimal(12,4),
+	`currentCost` decimal(12,4),
+	`qrCode` varchar(128),
+	`barcode` varchar(128),
+	`certificateUrl` varchar(500),
+	`moisture` decimal(5,2),
+	`protein` decimal(5,2),
+	`energy` decimal(7,1),
+	`mycotoxins` json,
+	`labResults` json,
+	`isQuarantined` boolean NOT NULL DEFAULT false,
+	`quarantineReason` varchar(500),
+	`releasedAt` timestamp,
+	`releasedBy` varchar(255),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `warehouse_lot_details_id` PRIMARY KEY(`id`),
+	CONSTRAINT `warehouse_lot_details_lotId_unique` UNIQUE(`lotId`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_lots` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`warehouseId` bigint unsigned NOT NULL,
+	`product` varchar(255) NOT NULL,
+	`lotNumber` varchar(64) NOT NULL,
+	`qty` decimal(12,2) NOT NULL,
+	`unit` varchar(16) NOT NULL DEFAULT 'kg',
+	`receivedDate` date NOT NULL,
+	`expiryDate` date,
+	`supplierId` bigint unsigned,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `warehouse_lots_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_movements` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`lotId` bigint unsigned,
+	`productId` bigint unsigned NOT NULL,
+	`type` enum('receipt','issue','transfer','adjustment','consumption','return','production') NOT NULL,
+	`subtype` enum('pz','import','own_prod','return_in','transfer_in','brooder_in','mixer_in','rw','wz','consume_feed','consume_med','consume_bed','consume_gas','service','sale','disposal','adjust','wh_to_wh','silo_to_silo','farm_to_farm','brooder_to_house','house_to_house','house_to_sale','house_to_disposal') NOT NULL,
+	`quantity` decimal(14,2) NOT NULL,
+	`unitCost` decimal(12,4) NOT NULL DEFAULT '0',
+	`totalValue` decimal(14,2) NOT NULL DEFAULT '0',
+	`fromWarehouseId` bigint unsigned,
+	`fromSiloId` bigint unsigned,
+	`fromHouseId` bigint unsigned,
+	`toWarehouseId` bigint unsigned,
+	`toSiloId` bigint unsigned,
+	`toHouseId` bigint unsigned,
+	`batchId` bigint unsigned,
+	`recipeId` bigint unsigned,
+	`documentNumber` varchar(64),
+	`documentType` varchar(32),
+	`notes` varchar(500),
+	`moistureAtMove` decimal(5,2),
+	`temperatureAtMove` decimal(4,1),
+	`performedBy` varchar(255) NOT NULL DEFAULT 'system',
+	`performedAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `warehouse_movements_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_products` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`sku` varchar(64) NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`description` text,
+	`category` enum('feed_raw','feed_ready','premix','concentrate','oil','vitamin','amino_acid','mineral','medication','vaccine','disinfectant','bedding','gas','pellet','consumable','spare_part','fuel','office','custom') NOT NULL,
+	`subcategory` varchar(128),
+	`unit` varchar(16) NOT NULL DEFAULT 'kg',
+	`minStock` decimal(12,2) NOT NULL DEFAULT '0',
+	`maxStock` decimal(12,2),
+	`reorderPoint` decimal(12,2) NOT NULL DEFAULT '0',
+	`safetyStock` decimal(12,2) NOT NULL DEFAULT '0',
+	`leadTimeDays` int NOT NULL DEFAULT 7,
+	`shelfLifeDays` int,
+	`isActive` boolean NOT NULL DEFAULT true,
+	`fcrImpact` decimal(4,2),
+	`adgImpact` decimal(6,1),
+	`healthImpact` varchar(500),
+	`bestPractices` text,
+	`dosageInfo` varchar(500),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `warehouse_products_id` PRIMARY KEY(`id`),
+	CONSTRAINT `warehouse_products_sku_unique` UNIQUE(`sku`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouse_stock_items` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`productId` bigint unsigned NOT NULL,
+	`warehouseId` bigint unsigned NOT NULL,
+	`quantity` decimal(14,2) NOT NULL DEFAULT '0',
+	`reserved` decimal(14,2) NOT NULL DEFAULT '0',
+	`available` decimal(14,2) NOT NULL DEFAULT '0',
+	`unitCost` decimal(12,4) NOT NULL DEFAULT '0',
+	`totalValue` decimal(14,2) NOT NULL DEFAULT '0',
+	`lastUpdated` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `warehouse_stock_items_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `warehouses` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`farmId` bigint unsigned NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`capacityTons` decimal(10,1) NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `warehouses_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `weighings` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`weighedAt` timestamp NOT NULL,
+	`dayAge` int NOT NULL,
+	`sampleSize` int NOT NULL,
+	`avgWeightG` int NOT NULL,
+	`medianG` int,
+	`stdDevG` int,
+	`minG` int,
+	`maxG` int,
+	`cv` decimal(5,2),
+	`operator` varchar(255),
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	CONSTRAINT `weighings_id` PRIMARY KEY(`id`)
+);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `withdrawal_periods` (
+	`id` serial AUTO_INCREMENT NOT NULL,
+	`treatmentId` bigint unsigned NOT NULL,
+	`batchId` bigint unsigned NOT NULL,
+	`medicine` varchar(255) NOT NULL,
+	`startDay` date NOT NULL,
+	`withdrawalDays` int NOT NULL,
+	`safeFrom` date NOT NULL,
+	`status` enum('active','archived') NOT NULL DEFAULT 'active',
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedBy` varchar(255) NOT NULL DEFAULT 'system',
+	CONSTRAINT `withdrawal_periods_id` PRIMARY KEY(`id`)
+);

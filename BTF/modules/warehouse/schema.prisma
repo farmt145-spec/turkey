@@ -1,0 +1,603 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CORE ORGANIZATION & HIERARCHY
+// ============================================================
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  taxId       String?
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  farms       Farm[]
+  warehouses  Warehouse[]
+  users       User[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+model House {
+  id          String   @id @default(uuid())
+  farmId      String
+  name        String
+  type        HouseType @default(GROWER)
+  capacity    Int
+  areaM2      Float?
+  isActive    Boolean  @default(true)
+
+  farm        Farm     @relation(fields: [farmId], references: [id])
+  batches     Batch[]
+  transfersTo Transfer[] @relation("TransferToHouse")
+  transfersFrom Transfer[] @relation("TransferFromHouse")
+
+  @@map("houses")
+}
+
+enum HouseType {
+  BROODER
+  GROWER
+  FINISHER
+  LAYER
+  QUARANTINE
+}
+
+// ============================================================
+// WAREHOUSE HIERARCHY
+// ============================================================
+
+model Zone {
+  id            String   @id @default(uuid())
+  warehouseId   String
+  name          String
+  type          ZoneType @default(GENERAL)
+  temperature   Float?
+  humidity      Float?
+  isActive      Boolean  @default(true)
+
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+  racks         Rack[]
+  stockItems    StockItem[]
+
+  @@map("zones")
+}
+
+enum ZoneType {
+  GENERAL
+  COLD
+  FREEZER
+  DRY
+  HAZARDOUS
+  QUARANTINE
+  RECEIVING
+  SHIPPING
+}
+
+model Rack {
+  id          String   @id @default(uuid())
+  zoneId      String
+  name        String
+  code        String
+  levels      Int      @default(4)
+  isActive    Boolean  @default(true)
+
+  zone        Zone     @relation(fields: [zoneId], references: [id])
+  locations   Location[]
+
+  @@map("racks")
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  rackId      String
+  name        String
+  code        String   @unique
+  level       Int
+  position    Int
+  maxWeight   Float?
+  isActive    Boolean  @default(true)
+
+  rack        Rack     @relation(fields: [rackId], references: [id])
+  stockItems  StockItem[]
+
+  @@map("locations")
+}
+
+// ============================================================
+// PRODUCTS
+// ============================================================
+
+model Product {
+  id              String   @id @default(uuid())
+  organizationId  String
+  sku             String   @unique
+  name            String
+  description     String?
+  category        ProductCategory
+  subcategory     String?
+  unit            String   @default("kg")
+  minStock        Float    @default(0)
+  maxStock        Float?
+  reorderPoint    Float    @default(0)
+  safetyStock     Float    @default(0)
+  leadTimeDays    Int      @default(7)
+  shelfLifeDays   Int?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  // AI Knowledge fields
+  fcrImpact       Float?   // -1 to +1 impact on FCR
+  adgImpact       Float?   // impact on ADG in g/day
+  healthImpact    String?  // description
+  interactions    String?  // JSON array of interaction warnings
+  bestPractices   String?
+  commonMistakes  String?
+  dosageInfo      String?
+
+  silos           Silo[]
+  stockItems      StockItem[]
+  lotItems        LotItem[]
+  recipes         RecipeIngredient[]
+  aiInsights      ProductAIInsight[]
+
+  @@map("products")
+}
+
+enum ProductCategory {
+  FEED_RAW
+  FEED_READY
+  PREMIX
+  CONCENTRATE
+  OIL
+  VITAMIN
+  AMINO_ACID
+  MINERAL
+  MEDICATION
+  VACCINE
+  DISINFECTANT
+  BEDDING
+  GAS
+  PELLET
+  CONSUMABLE
+  SPARE_PART
+  FUEL
+  OFFICE
+  CUSTOM
+}
+
+model ProductAIInsight {
+  id          String   @id @default(uuid())
+  productId   String
+  type        InsightType
+  content     String
+  confidence  Float    @default(0.8)
+  generatedAt DateTime @default(now())
+
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@map("product_ai_insights")
+}
+
+enum InsightType {
+  USAGE
+  FCR_IMPACT
+  ADG_IMPACT
+  HEALTH_IMPACT
+  INTERACTION
+  DOSAGE
+  BEST_PRACTICE
+  MISTAKE
+  SEASONAL
+}
+
+// ============================================================
+// LOTS & TRACEABILITY
+// ============================================================
+
+model Lot {
+  id              String   @id @default(uuid())
+  lotNumber       String   @unique
+  productId       String
+  supplierId      String?
+  manufacturer    String?
+  productionDate  DateTime?
+  receivedDate    DateTime @default(now())
+  expiryDate      DateTime?
+  purchaseCost    Decimal  @db.Decimal(12, 4)
+  currentCost     Decimal  @db.Decimal(12, 4)
+  initialQuantity Float
+  remainingQuantity Float  @default(0)
+  unit            String   @default("kg")
+  status          LotStatus @default(ACTIVE)
+  qrCode          String?
+  barcode         String?
+  certificateUrl  String?
+  photos          String[] // array of URLs
+  documents       String[] // array of URLs
+
+  // Quality parameters
+  moisture        Float?
+  protein         Float?
+  energy          Float?
+  mycotoxins      Json?    // {aflatoxin, ochratoxin, fumonisin, etc.}
+  labResults      Json?    // full lab report
+
+  isQuarantined   Boolean  @default(false)
+  quarantineReason String?
+  releasedAt      DateTime?
+  releasedBy      String?
+
+  createdAt       DateTime @default(now())
+
+  product         Product  @relation(fields: [productId], references: [id])
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  lotItems        LotItem[]
+  stockMovements  StockMovement[]
+
+  @@map("lots")
+}
+
+enum LotStatus {
+  ACTIVE
+  EXPIRED
+  DEPLETED
+  QUARANTINED
+  REJECTED
+  RETURNED
+}
+
+model LotItem {
+  id          String   @id @default(uuid())
+  lotId       String
+  productId   String
+  locationId  String?
+  siloId      String?
+  quantity    Float
+  reserved    Float    @default(0)
+  status      LotItemStatus @default(AVAILABLE)
+
+  lot         Lot      @relation(fields: [lotId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  location    Location? @relation(fields: [locationId], references: [id])
+
+  @@map("lot_items")
+}
+
+enum LotItemStatus {
+  AVAILABLE
+  RESERVED
+  IN_USE
+  EXPIRED
+  QUARANTINED
+}
+
+// ============================================================
+// STOCK ITEMS (Current inventory snapshot)
+// ============================================================
+
+model StockItem {
+  id          String   @id @default(uuid())
+  productId   String
+  warehouseId String
+  zoneId      String?
+  locationId  String?
+  quantity    Float
+  reserved    Float    @default(0)
+  available   Float
+  unitCost    Decimal  @db.Decimal(12, 4)
+  totalValue  Decimal  @db.Decimal(14, 2)
+  lastUpdated DateTime @updatedAt
+
+  product     Product  @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  zone        Zone?    @relation(fields: [zoneId], references: [id])
+  location    Location? @relation(fields: [locationId], references: [id])
+
+  @@unique([productId, warehouseId, zoneId, locationId])
+  @@map("stock_items")
+}
+
+// ============================================================
+// STOCK MOVEMENTS (Full traceability)
+// ============================================================
+
+model StockMovement {
+  id              String   @id @default(uuid())
+  lotId           String?
+  productId       String
+  type            MovementType
+  subtype         MovementSubtype
+  quantity        Float
+  unitCost        Decimal  @db.Decimal(12, 4)
+  totalValue      Decimal  @db.Decimal(14, 2)
+
+  // Source
+  fromWarehouseId String?
+  fromSiloId      String?
+  fromZoneId      String?
+  fromLocationId  String?
+  fromHouseId     String?
+
+  // Destination
+  toWarehouseId   String?
+  toSiloId        String?
+  toZoneId        String?
+  toLocationId    String?
+  toHouseId       String?
+
+  // References
+  batchId         String?
+  recipeId        String?
+  documentNumber  String?
+  documentType    String?
+  notes           String?
+
+  // Quality at movement
+  moistureAtMove  Float?
+  temperatureAtMove Float?
+
+  performedBy     String
+  performedAt     DateTime @default(now())
+
+  lot             Lot?     @relation(fields: [lotId], references: [id])
+
+  @@map("stock_movements")
+}
+
+enum MovementType {
+  RECEIPT    // Przyjęcie
+  ISSUE      // Wydanie
+  TRANSFER   // Transfer
+  ADJUSTMENT // Korekta
+  CONSUMPTION // Zużycie
+  RETURN     // Zwrot
+  PRODUCTION // Produkcja własna
+}
+
+enum MovementSubtype {
+  PZ         // Przyjęcie zewnętrzne
+  IMPORT     // Import
+  OWN_PROD   // Produkcja własna
+  RETURN_IN  // Zwrot
+  TRANSFER_IN // Transfer przychodzący
+  BROODER_IN // Przyjęcie z odchowalni
+  MIXER_IN   // Przyjęcie z mieszalni
+
+  RW         // Rozchód wewnętrzny
+  WZ         // Wydanie zewnętrzne
+  CONSUME_FEED // Zużycie paszy
+  CONSUME_MED  // Zużycie leku
+  CONSUME_BED  // Zużycie ściółki
+  CONSUME_GAS  // Zużycie gazu
+  SERVICE      // Serwis
+  SALE         // Sprzedaż
+  DISPOSAL     // Utylizacja
+  ADJUST       // Korekta
+
+  WH_TO_WH   // Magazyn → Magazyn
+  SILO_TO_SILO // Silos → Silos
+  FARM_TO_FARM // Ferma → Ferma
+  BROODER_TO_HOUSE // Odchowalnia → Kurnik
+  HOUSE_TO_HOUSE   // Kurnik → Kurnik
+  HOUSE_TO_SALE    // Kurnik → Sprzedaż
+  HOUSE_TO_DISPOSAL // Kurnik → Utylizacja
+}
+
+// ============================================================
+// TRANSFERS
+// ============================================================
+
+model TransferItem {
+  id          String   @id @default(uuid())
+  transferId  String
+  productId   String
+  lotId       String?
+  quantity    Float
+  unit        String
+  unitCost    Decimal  @db.Decimal(12, 4)
+  notes       String?
+
+  transfer    Transfer @relation(fields: [transferId], references: [id])
+
+  @@map("transfer_items")
+}
+
+// ============================================================
+// SUPPLIERS
+// ============================================================
+
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String
+  taxId       String?
+  address     String?
+  phone       String?
+  email       String?
+  rating      Float    @default(5)
+  leadTimeAvg Int?     // average days
+  qualityScore Float?   @default(5)
+  isActive    Boolean  @default(true)
+
+  lots        Lot[]
+
+  @@map("suppliers")
+}
+
+// ============================================================
+// RECIPES (Feed recipes)
+// ============================================================
+
+model Recipe {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  targetFcr       Float?
+  targetAdg       Float?
+  minProtein      Float?
+  minEnergy       Float?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  ingredients     RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id          String   @id @default(uuid())
+  recipeId    String
+  productId   String
+  percentage  Float
+  minPercentage Float?
+  maxPercentage Float?
+
+  recipe      Recipe   @relation(fields: [recipeId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@map("recipe_ingredients")
+}
+
+// ============================================================
+// AI WAREHOUSE & FORECASTS
+// ============================================================
+
+model WarehouseAIAnalysis {
+  id              String   @id @default(uuid())
+  productId       String
+  warehouseId     String?
+  analysisType    AIAnalysisType
+
+  // Consumption metrics
+  avgDailyConsumption Float?
+  consumptionTrend    Float?  // % change
+  seasonalityFactor   Float?
+
+  // Stock metrics
+  currentStock        Float?
+  daysOfSupply        Float?
+  stockoutRisk        Float?  // 0-1 probability
+  expiryRisk          Float?  // 0-1 probability
+  rotationScore       Float?  // 0-100
+
+  // Forecasts
+  predictedStockoutDate DateTime?
+  recommendedOrderQty Float?
+  recommendedOrderDate  DateTime?
+  bestSupplierId        String?
+  bestSupplierCost      Decimal? @db.Decimal(12, 4)
+
+  generatedAt         DateTime @default(now())
+
+  @@map("warehouse_ai_analyses")
+}
+
+enum AIAnalysisType {
+  CONSUMPTION
+  FORECAST
+  ROTATION
+  RISK
+  OPTIMIZATION
+}
+
+// ============================================================
+// ALERTS
+// ============================================================
+
+model WarehouseAlert {
+  id              String   @id @default(uuid())
+  type            AlertType
+  severity        AlertSeverity
+  productId       String?
+  lotId           String?
+  warehouseId     String?
+  siloId          String?
+  message         String
+  details         Json?
+
+  isResolved      Boolean  @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+
+  createdAt       DateTime @default(now())
+
+  @@map("warehouse_alerts")
+}
+
+enum AlertType {
+  LOW_STOCK
+  EXPIRED
+  EXPIRING_SOON
+  HIGH_MOISTURE
+  MYCOTOXINS
+  QUALITY_MISMATCH
+  FEED_SHORTAGE
+  MED_SHORTAGE
+  VACCINE_SHORTAGE
+  STOCK_MISMATCH
+  SILO_EMPTY
+  SILO_FULL
+  TEMPERATURE_ANOMALY
+  ROTATION_NEEDED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  EMERGENCY
+}
+
+// ============================================================
+// BATCH (Production link)
+// ============================================================
+
+model Batch {
+  id              String   @id @default(uuid())
+  farmId          String
+  houseId         String?
+  batchNumber     String   @unique
+  breed           String?
+  chicksReceived  Int?
+  startDate       DateTime
+  status          BatchStatus @default(ACTIVE)
+
+  farm            Farm     @relation(fields: [farmId], references: [id])
+  house           House?   @relation(fields: [houseId], references: [id])
+  silos           Silo[]
+  stockMovements  StockMovement[]
+
+  @@map("batches")
+}
+
+enum BatchStatus {
+  ACTIVE
+  PENDING_SALE
+  SOLD
+  CLOSED
+}
+
+// ============================================================
+// AUDIT & RBAC
+// ============================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_ADMIN
+  FARM_ADMIN
+  MANAGER
+  OPERATOR
+  VIEWER
+  AUDITOR
+}

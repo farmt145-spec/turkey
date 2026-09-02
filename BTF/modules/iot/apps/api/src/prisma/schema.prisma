@@ -1,0 +1,463 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Building {
+  id          String   @id @default(uuid())
+  farmId      String
+  name        String
+  type        BuildingType
+  capacity    Int?
+  area        Float?
+  layout      Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  zones       Zone[]
+  devices     Device[]
+  climateData ClimateData[]
+  mortality   MortalityRecord[]
+  fcrData     FCRRecord[]
+  adgData     ADGRecord[]
+  @@map("buildings")
+}
+
+enum BuildingType {
+  BROODER
+  GROWER
+  FINISHER
+  BROODER_GROWER
+  QUARANTINE
+  FEED_STORAGE
+  EQUIPMENT
+}
+
+model Zone {
+  id          String   @id @default(uuid())
+  buildingId  String
+  name        String
+  positionX   Float?
+  positionY   Float?
+  positionZ   Float?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  devices     Device[]
+  @@map("zones")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  OPERATOR
+  VIEWER
+}
+
+model UserFarm {
+  id        String   @id @default(uuid())
+  userId    String
+  farmId    String
+  role      UserRole @default(OPERATOR)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  @@unique([userId, farmId])
+  @@map("user_farms")
+}
+
+model DeviceType {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  category     DeviceCategory
+  manufacturer String?
+  model        String?
+  icon         String?
+  defaultConfig Json?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  devices      Device[]
+  @@map("device_types")
+}
+
+enum DeviceCategory {
+  CLIMATE_CONTROLLER
+  TEMPERATURE_SENSOR
+  HUMIDITY_SENSOR
+  CO2_SENSOR
+  NH3_SENSOR
+  H2S_SENSOR
+  AIRFLOW_SENSOR
+  ENERGY_METER
+  GAS_METER
+  WATER_METER
+  FEED_SCALE
+  FEED_SILO_LEVEL
+  FEED_AUTO
+  DRINKER
+  AI_CAMERA
+  BIRD_SCALE
+  MORTALITY_COUNTER
+  DOOR_SENSOR
+  GENERATOR
+  UPS
+  FIRE_ALARM
+  DISINFECTION_SYSTEM
+  UNKNOWN
+}
+
+model Device {
+  id            String   @id @default(uuid())
+  farmId        String
+  buildingId    String?
+  zoneId        String?
+  deviceTypeId  String
+  integrationId String?
+  name          String
+  serialNumber  String?
+  macAddress    String?
+  ipAddress     String?
+  modbusAddress Int?
+  mqttTopic     String?
+  opcUaNodeId   String?
+  positionX     Float?
+  positionY     Float?
+  positionZ     Float?
+  config        Json?
+  calibration   Json?
+  status        DeviceStatus @default(OFFLINE)
+  lastSeenAt    DateTime?
+  firmwareVersion String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  farm          Farm         @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  building      Building?    @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  zone          Zone?        @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  deviceType    DeviceType   @relation(fields: [deviceTypeId], references: [id])
+  integration   Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  telemetry     Telemetry[]
+  alarms        Alarm[]
+  predictions   AIPrediction[]
+  maintenance   MaintenanceRecord[]
+  @@map("devices")
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  WARNING
+  ERROR
+  MAINTENANCE
+  CALIBRATING
+}
+
+model Integration {
+  id          String   @id @default(uuid())
+  farmId      String
+  name        String
+  type        IntegrationType
+  config      Json
+  isActive    Boolean  @default(true)
+  lastSyncAt  DateTime?
+  status      IntegrationStatus @default(DISCONNECTED)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  devices     Device[]
+  @@map("integrations")
+}
+
+enum IntegrationType {
+  FANCOM
+  BIG_DUTCHMAN
+  HOTRACO
+  ROXELL
+  SKOV
+  MODBUS_TCP
+  MODBUS_RTU
+  MQTT_BROKER
+  OPC_UA
+  REST_API
+  WEBSOCKET
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  SYNCING
+}
+
+model Telemetry {
+  id          String   @id @default(uuid())
+  deviceId    String
+  timestamp   DateTime @default(now())
+  rawValue    Json
+  processedValue Float?
+  unit        String?
+  quality     TelemetryQuality @default(GOOD)
+  metadata    Json?
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@index([deviceId, timestamp])
+  @@index([timestamp])
+  @@map("telemetry")
+}
+
+enum TelemetryQuality {
+  GOOD
+  BAD
+  UNCERTAIN
+  SENSOR_ERROR
+  CALIBRATION_ERROR
+}
+
+model ClimateData {
+  id          String   @id @default(uuid())
+  buildingId  String
+  timestamp   DateTime
+  avgTemp     Float?
+  minTemp     Float?
+  maxTemp     Float?
+  avgHumidity Float?
+  avgCO2      Float?
+  avgNH3      Float?
+  avgH2S      Float?
+  avgAirflow  Float?
+  heatIndex   Float?
+  comfortIndex Float?
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  @@index([buildingId, timestamp])
+  @@map("climate_data")
+}
+
+model FeedSilo {
+  id          String   @id @default(uuid())
+  farmId      String
+  name        String
+  capacity    Float
+  currentLevel Float
+  alertLevel  Float
+  lastFillAt  DateTime?
+  location    Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  @@map("feed_silos")
+}
+
+model Alarm {
+  id          String   @id @default(uuid())
+  farmId      String
+  deviceId    String?
+  type        AlarmType
+  severity    AlarmSeverity
+  message     String
+  details     Json?
+  isAcknowledged Boolean @default(false)
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  device      Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  acks        AlarmAcknowledgement[]
+  @@index([farmId, createdAt])
+  @@index([severity, isAcknowledged])
+  @@map("alarms")
+}
+
+enum AlarmType {
+  DEVICE_OFFLINE
+  SENSOR_ERROR
+  CLIMATE_ANOMALY
+  HIGH_TEMPERATURE
+  LOW_TEMPERATURE
+  HIGH_HUMIDITY
+  HIGH_CO2
+  HIGH_NH3
+  HIGH_H2S
+  LOW_AIRFLOW
+  FEED_LOW
+  FEED_EMPTY
+  WATER_LEAK
+  ENERGY_SPIKE
+  GENERATOR_FAILURE
+  FIRE_DETECTED
+  DOOR_OPEN
+  MORTALITY_SPIKE
+  AI_ANOMALY
+  PREDICTIVE_MAINTENANCE
+  SYSTEM_ERROR
+}
+
+enum AlarmSeverity {
+  INFO
+  WARNING
+  CRITICAL
+  EMERGENCY
+}
+
+model AlarmAcknowledgement {
+  id        String   @id @default(uuid())
+  alarmId   String
+  userId    String
+  comment   String?
+  createdAt DateTime @default(now())
+  alarm     Alarm    @relation(fields: [alarmId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("alarm_acknowledgements")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  farmId      String
+  userId      String?
+  type        NotificationType
+  channel     NotificationChannel
+  title       String
+  message     String
+  data        Json?
+  isRead      Boolean  @default(false)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+  @@index([farmId, userId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ALARM
+  PREDICTION
+  REPORT
+  SYSTEM
+  MAINTENANCE
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  EMAIL
+  IN_APP
+  WEBSOCKET
+}
+
+model AIPrediction {
+  id          String   @id @default(uuid())
+  deviceId    String?
+  farmId      String
+  buildingId  String?
+  type        PredictionType
+  modelVersion String
+  confidence  Float
+  prediction  Json
+  features    Json?
+  actualValue Json?
+  accuracy    Float?
+  createdAt   DateTime @default(now())
+  validUntil  DateTime?
+  device      Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  @@index([farmId, type, createdAt])
+  @@map("ai_predictions")
+}
+
+enum PredictionType {
+  ANOMALY_DETECTION
+  DEVICE_FAILURE
+  FEED_SHORTAGE
+  FAN_FAILURE
+  WATER_CONSUMPTION_ANOMALY
+  ENERGY_CONSUMPTION_ANOMALY
+  CLIMATE_FCR_IMPACT
+  CLIMATE_MORTALITY_IMPACT
+  CLIMATE_ADG_IMPACT
+  MAINTENANCE_RECOMMENDATION
+  OPTIMIZATION
+}
+
+model AIModel {
+  id          String   @id @default(uuid())
+  name        String
+  type        PredictionType
+  version     String
+  path        String
+  metrics     Json?
+  isActive    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@map("ai_models")
+}
+
+model MortalityRecord {
+  id          String   @id @default(uuid())
+  buildingId  String
+  count       Int
+  reason      String?
+  timestamp   DateTime @default(now())
+  detectedBy  String?
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  @@map("mortality_records")
+}
+
+model FCRRecord {
+  id          String   @id @default(uuid())
+  buildingId  String
+  periodStart DateTime
+  periodEnd   DateTime
+  feedConsumed Float
+  weightGain  Float
+  fcr         Float
+  birdsCount  Int
+  createdAt   DateTime @default(now())
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  @@map("fcr_records")
+}
+
+model ADGRecord {
+  id          String   @id @default(uuid())
+  buildingId  String
+  periodStart DateTime
+  periodEnd   DateTime
+  avgDailyGain Float
+  birdsCount   Int
+  createdAt   DateTime @default(now())
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  @@map("adg_records")
+}
+
+model MaintenanceRecord {
+  id          String   @id @default(uuid())
+  deviceId    String
+  type        String
+  description String
+  performedBy String?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  cost        Float?
+  parts       Json?
+  createdAt   DateTime @default(now())
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@map("maintenance_records")
+}
+
+model DigitalTwinState {
+  id          String   @id @default(uuid())
+  farmId      String
+  buildingId  String?
+  timestamp   DateTime @default(now())
+  state       Json
+  version     Int      @default(1)
+  @@index([farmId, buildingId, timestamp])
+  @@map("digital_twin_states")
+}

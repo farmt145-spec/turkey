@@ -1,0 +1,329 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model House {
+  id          String   @id @default(uuid())
+  name        String
+  capacity    Int
+  farmId      String
+  farm        Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  flocks      Flock[]
+  environment EnvironmentData[]
+  createdAt   DateTime @default(now())
+  @@map("houses")
+}
+
+model HealthRecord {
+  id          String   @id @default(uuid())
+  flockId     String
+  flock       Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  type        HealthRecordType
+  date        DateTime
+  description String   @db.Text
+  performedBy String
+  cost        Decimal? @db.Decimal(10, 2)
+  images      HealthImage[]
+  documents   HealthDocument[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String
+  @@map("health_records")
+}
+
+enum HealthRecordType {
+  VACCINATION
+  TREATMENT
+  SUPPLEMENT
+  VITAMIN
+  FEED_ADDITIVE
+  PROBIOTIC
+  ACIDIFIER
+  DISINFECTION
+  LAB_EXAM
+  NECROPSY
+  OBSERVATION
+}
+
+model HealthImage {
+  id              String @id @default(uuid())
+  healthRecordId  String
+  healthRecord    HealthRecord @relation(fields: [healthRecordId], references: [id], onDelete: Cascade)
+  url             String
+  description     String?
+  createdAt       DateTime @default(now())
+  @@map("health_images")
+}
+
+model HealthDocument {
+  id              String @id @default(uuid())
+  healthRecordId  String
+  healthRecord    HealthRecord @relation(fields: [healthRecordId], references: [id], onDelete: Cascade)
+  url             String
+  fileName        String
+  fileType        String
+  createdAt       DateTime @default(now())
+  @@map("health_documents")
+}
+
+model Vaccination {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  programId       String?
+  program         VaccinationProgram? @relation(fields: [programId], references: [id])
+  vaccineName     String
+  manufacturer    String?
+  batchNumber     String?
+  dose            String
+  route           AdministrationRoute
+  ageDays         Int
+  scheduledDate   DateTime
+  executedDate    DateTime?
+  status          VaccinationStatus @default(SCHEDULED)
+  performedBy     String?
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@map("vaccinations")
+}
+
+enum AdministrationRoute {
+  DRINKING_WATER
+  SPRAY
+  INJECTION_IM
+  INJECTION_SC
+  EYE_DROP
+  WING_WEB
+}
+
+enum VaccinationStatus {
+  SCHEDULED
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+model VaccinationProgram {
+  id          String   @id @default(uuid())
+  name        String
+  breed       String?
+  description String?  @db.Text
+  isDefault   Boolean  @default(false)
+  steps       VaccinationStep[]
+  vaccinations Vaccination[]
+  createdAt   DateTime @default(now())
+  @@map("vaccination_programs")
+}
+
+model VaccinationStep {
+  id              String   @id @default(uuid())
+  programId       String
+  program         VaccinationProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  vaccineName     String
+  ageDays         Int
+  route           AdministrationRoute
+  dose            String
+  notes           String?
+  @@map("vaccination_steps")
+}
+
+model Treatment {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  productName     String
+  manufacturer    String
+  activeSubstance String
+  dose            String
+  route           AdministrationRoute
+  startDate       DateTime
+  endDate         DateTime?
+  withdrawalDays  Int      @default(0)
+  cost            Decimal? @db.Decimal(10, 2)
+  performedBy     String
+  effectiveness   EffectivenessRating?
+  aiRecommended   Boolean  @default(false)
+  aiConfidence    Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String
+  @@map("treatments")
+}
+
+enum EffectivenessRating {
+  EXCELLENT
+  GOOD
+  MODERATE
+  POOR
+  NONE
+}
+
+model WithdrawalPeriod {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  treatmentId     String?  @unique
+  substanceName   String
+  startDate       DateTime
+  endDate         DateTime
+  isActive        Boolean  @default(true)
+  blocksSale      Boolean  @default(false)
+  warningSent     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  @@map("withdrawal_periods")
+}
+
+model Necropsy {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  date            DateTime
+  birdId          String?
+  findings        String   @db.Text
+  tentativeDiagnosis String?
+  labSamples      Boolean  @default(false)
+  performedBy     String
+  createdAt       DateTime @default(now())
+  @@map("necropsies")
+}
+
+model LabResult {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  testType        String
+  date            DateTime
+  result          String   @db.Text
+  pathogen        String?
+  status          LabStatus
+  documentUrl     String?
+  createdAt       DateTime @default(now())
+  @@map("lab_results")
+}
+
+enum LabStatus {
+  PENDING
+  POSITIVE
+  NEGATIVE
+  INCONCLUSIVE
+}
+
+model DailyMetric {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  date            DateTime
+  mortality       Int      @default(0)
+  mortalityRate   Float?
+  feedIntake      Float?
+  waterIntake     Float?
+  fcr             Float?
+  adg             Float?
+  epef            Float?
+  temperature     Float?
+  humidity        Float?
+  co2             Float?
+  nh3             Float?
+  anomalyScore    Float?
+  anomalyFlags    String[]
+  createdAt       DateTime @default(now())
+  @@unique([flockId, date])
+  @@map("daily_metrics")
+}
+
+model EnvironmentData {
+  id              String   @id @default(uuid())
+  houseId         String
+  house           House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  timestamp       DateTime
+  temperature     Float?
+  humidity        Float?
+  co2             Float?
+  nh3             Float?
+  airflow         Float?
+  lightIntensity  Float?
+  @@map("environment_data")
+}
+
+model Disease {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  nameLatin       String?
+  description     String   @db.Text
+  symptoms        String[]
+  diagnosis       String?  @db.Text
+  prevention      String?  @db.Text
+  treatment       String?  @db.Text
+  fcrImpact       Float?
+  adgImpact       Float?
+  epefImpact      Float?
+  economicImpact  String?  @db.Text
+  images          DiseaseImage[]
+  references      DiseaseReference[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@map("diseases")
+}
+
+model DiseaseImage {
+  id          String @id @default(uuid())
+  diseaseId   String
+  disease     Disease @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+  url         String
+  description String?
+  @@map("disease_images")
+}
+
+model DiseaseReference {
+  id          String @id @default(uuid())
+  diseaseId   String
+  disease     Disease @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+  title       String
+  authors     String?
+  journal     String?
+  year        Int?
+  url         String?
+  @@map("disease_references")
+}
+
+model RiskScore {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  calculatedAt    DateTime @default(now())
+  healthScore     Int
+  productionScore Int
+  riskScore       Int
+  welfareScore    Int
+  factors         Json?
+  @@map("risk_scores")
+}
+
+model AIAdvisorLog {
+  id              String   @id @default(uuid())
+  flockId         String
+  flock           Flock    @relation(fields: [flockId], references: [id], onDelete: Cascade)
+  symptoms        String[]
+  inputData       Json
+  recommendations Json
+  confidence      Float?
+  disclaimerShown Boolean  @default(true)
+  veterinarianId  String?
+  createdAt       DateTime @default(now())
+  @@map("ai_advisor_logs")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  FARM_MANAGER
+  VETERINARIAN
+  OPERATOR
+  VIEWER
+}
+

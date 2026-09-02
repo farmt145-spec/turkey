@@ -1,0 +1,3 @@
+-- The migration journal referenced this tag, but its SQL file was absent.
+-- The schema additions represented by its snapshot are additive and are
+-- applied by the checked-in schema/migration sequence without dropping data.
