@@ -33,7 +33,7 @@ Ten URL wpisz jako `DATABASE_URL` w Netlify.
 
 ## 4) Przygotowanie i wklejenie zmiennych do Netlify
 
-1. W repo użyj template: `/home/runner/work/Indykpol/Indykpol/.env.production`
+1. W repo użyj template: `.env.production.example`
 2. Wejdź do Netlify:
    - **Site configuration** → **Environment variables**
 3. Dodaj zmienne:
@@ -41,7 +41,7 @@ Ten URL wpisz jako `DATABASE_URL` w Netlify.
 ```env
 NODE_ENV=production
 DATABASE_TYPE=mysql
-DATABASE_URL=******HOST:3306/DATABASE
+DATABASE_URL=mysql://USER:PASSWORD@HOST:3306/DATABASE
 SESSION_SECRET=<wygenerowany_sekret>
 API_KEY_PEPPER=<wygenerowany_sekret>
 DEMO_MODE=true
@@ -54,7 +54,7 @@ VITE_DEMO_MODE=true
 Wygeneruj sekrety lokalnie:
 
 ```bash
-node /home/runner/work/Indykpol/Indykpol/scripts/generate-secrets.js
+node scripts/generate-secrets.js
 ```
 
 Skrypt zapisze sekrety do pliku:
@@ -81,15 +81,14 @@ Wklej wartości do Netlify Environment Variables.
 
 W repo przygotowany jest plik:
 
-- `/home/runner/work/Indykpol/Indykpol/.netlify.toml`
+- `netlify.toml`
 
 Konfiguracja zakłada:
 - build z katalogu `app`
 - publikację `dist/public`
-- Netlify Functions z katalogu `netlify/functions`
+- Netlify Functions z katalogu `app/netlify/functions`
 - przekierowania API:
-  - `/api/trpc/*`
-  - `/api/demo-login`
+  - `/api/*`
 
 ## 7) Wdrożenie aplikacji
 

@@ -219,7 +219,7 @@ export default app;
 
 const isServerlessRuntime = Boolean(process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
-if (env.isProduction && !isServerlessRuntime) {
+const startProductionServer = async () => {
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
@@ -228,4 +228,8 @@ if (env.isProduction && !isServerlessRuntime) {
   serve({ fetch: app.fetch, port }, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+};
+
+if (env.isProduction && !isServerlessRuntime) {
+  void startProductionServer();
 }

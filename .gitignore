@@ -3,6 +3,7 @@ node_modules/
 
 # Environment / secrets
 .env
+.env.production
 .env.*
 !.env.example
 !.env.local.example
