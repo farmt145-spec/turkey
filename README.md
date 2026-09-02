@@ -90,6 +90,7 @@ Important:
 - Netlify serves the frontend and the `/api/*` endpoints through Netlify Functions.
 - When `DATABASE_TYPE=mysql`, the Netlify function automatically runs idempotent SQL migrations on cold start.
 - `VITE_API_URL` is optional; leave it empty to use the same Netlify site for API calls.
+- the default app flow now opens directly into the shared example workspace without a login screen
 - do not expose database credentials in the browser
 
 ## Important notes

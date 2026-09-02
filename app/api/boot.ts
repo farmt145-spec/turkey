@@ -44,7 +44,13 @@ app.use(
 
 registerAuthRoutes(app);
 
-async function establishDemoSession(c: Context<{ Bindings: HttpBindings }>, companyId: number, identity: string, name: string) {
+async function establishDemoSession(
+  c: Context<{ Bindings: HttpBindings }>,
+  companyId: number,
+  identity: string,
+  name: string,
+  role: "user" | "admin" = "admin",
+) {
   const { establishSession } = await import("./auth/local");
   const { findUserByUnionId } = await import("./queries/users");
   const { getDb } = await import("./queries/connection");
@@ -57,26 +63,35 @@ async function establishDemoSession(c: Context<{ Bindings: HttpBindings }>, comp
     const [{ id }] = await db.insert(users).values({
       unionId: identity,
       name,
-      role: "user",
+      role,
       companyId,
     }).returning({ id: users.id });
     [user] = await db.select().from(users).where(eq(users.id, id));
-  } else if (user.companyId !== companyId) {
-    await db.update(users).set({ companyId, name }).where(eq(users.id, user.id));
+  } else if (user.companyId !== companyId || user.role !== role || user.name !== name) {
+    await db.update(users).set({ companyId, name, role }).where(eq(users.id, user.id));
     [user] = await db.select().from(users).where(eq(users.id, user.id));
   }
   await establishSession(c, user);
   return user;
 }
 
-if (env.demoMode) {
-  app.get("/api/demo-login", async (c) => {
-    if (!env.demoCompanyId) return c.json({ error: "DEMO_NOT_CONFIGURED" }, 503);
-    const user = await establishDemoSession(c, env.demoCompanyId, "public-demo", "Public Demo");
-    if (!user) return c.json({ error: "DEMO_COMPANY_NOT_FOUND" }, 503);
-    return c.redirect(env.frontendUrl || "/", 302);
-  });
-}
+app.get("/api/demo-login", async (c) => {
+  const { ensureSeeded } = await import("./seed");
+  const { getDb } = await import("./queries/connection");
+  const { companies } = await import("@db/schema");
+  await ensureSeeded();
+  const db = getDb();
+  const [company] = env.demoCompanyId
+    ? await db.select().from(companies).where(eq(companies.id, env.demoCompanyId)).limit(1)
+    : await db.select().from(companies).limit(1);
+  const companyId = company?.id ?? (await db.insert(companies).values({
+      name: "Bloody Turkey Demo",
+      countryCode: "PL",
+  }).returning({ id: companies.id }))[0].id;
+  const user = await establishDemoSession(c, companyId, "public-workspace", "Open Workspace", "admin");
+  if (!user) return c.json({ error: "DEMO_COMPANY_NOT_FOUND" }, 503);
+  return c.redirect(env.frontendUrl || "/", 302);
+});
 
 /* =========================================================
   DEV LOGIN
@@ -96,7 +111,7 @@ if (!env.isProduction) {
         name: "Bloody Turkey Demo",
         countryCode: "PL",
     }).returning({ id: companies.id }))[0].id;
-    await establishDemoSession(c, companyId, env.ownerUnionId || "dev-owner", "Local Demo");
+    await establishDemoSession(c, companyId, env.ownerUnionId || "dev-owner", "Local Demo", "admin");
     return c.redirect("/");
   });
 }

@@ -112,7 +112,7 @@ http://127.0.0.1:4173
 ## 6. Important notes
 
 - App is a single repo deployed on Netlify with server-side functions under `/api/*`.
-- Demo mode can auto-log into the seeded public company.
+- The app now opens directly into the seeded public workspace without a login screen.
 - New companies can start with copied recipes, nutritional norms, ingredients, and starter structure data.
 - Do not expose database credentials to the browser.
-- Po zalogowaniu możesz utworzyć własną firmę w widoku `Struktura`; opcja seed doda dane startowe (ferma/kurnik/rzut).
+- W widoku `Struktura` możesz utworzyć własną firmę; opcja seed doda dane startowe (ferma/kurnik/rzut).
